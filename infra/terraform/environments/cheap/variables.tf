@@ -27,7 +27,7 @@ variable "public_subnet_cidr" {
 }
 
 variable "instance_type" {
-  description = "EC2 instance type (t4g.small=2GB, t3.medium=4GB recommended for on-box builds)"
+  description = "EC2 instance type (t4g.small=2GB ARM, t4g.medium=4GB recommended for on-box builds)"
   type        = string
   default     = "t4g.small"
 }

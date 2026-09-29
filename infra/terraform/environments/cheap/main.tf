@@ -37,14 +37,15 @@ provider "aws" {
   }
 }
 
-# Amazon Linux 2023 (x86_64) - kept light; t4g/t3 instance types both supported.
+# Amazon Linux 2023 (arm64) - matches the t4g/t3g Graviton instances (cheapest
+# always-on option; x86_64 instances would need a different AMI + compose binary).
 data "aws_ami" "al2023" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["al2023-ami-2023.*-x86_64"]
+    values = ["al2023-ami-2023.*-arm64"]
   }
   filter {
     name   = "virtualization-type"
