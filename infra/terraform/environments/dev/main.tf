@@ -10,9 +10,10 @@ terraform {
 
   backend "s3" {
     # Configure per environment: bucket, key, region, dynamodb_table for locking.
-    bucket         = "ai-platform-tfstate"
+    bucket         = "ai-platform-proof-tfstate"
     key            = "dev/terraform.tfstate"
     region         = "eu-west-2"
+    use_lockfile   = true
     dynamodb_table = "ai-platform-tfstate-lock"
   }
 }
