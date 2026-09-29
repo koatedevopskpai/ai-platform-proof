@@ -18,5 +18,5 @@ data_classification = "public-reference"
 
 # Budget guardrail (combined with Option B ephemeral spend)
 budget_enabled      = true
-budget_limit_amount = 20
+budget_limit_amount = 26        # hard monthly cap in USD (AWS Budgets = USD only; ~GBP 20)
 budget_alerts_email = "koate.kpai@outlook.com"

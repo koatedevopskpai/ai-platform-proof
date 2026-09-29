@@ -15,7 +15,7 @@ resource "aws_budgets_budget" "cheap" {
   name         = "ai-platform-${var.environment}-monthly-budget"
   budget_type  = "COST"
   limit_amount = var.budget_limit_amount
-  limit_unit   = "GBP"
+  limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
   cost_filter {

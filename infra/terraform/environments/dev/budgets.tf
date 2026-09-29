@@ -1,9 +1,9 @@
 # -----------------------------------------------------------------------------
-# FinOps cost guardrails — hard monthly budget cap + auto-stop on overrun.
+# FinOps cost guardrails â€” hard monthly budget cap + auto-stop on overrun.
 #
 # NOTE ON REALITY: the default stack (EKS control plane + node group + RDS +
-# NAT gateway) costs ~£200+/month. A £20 cap is only achievable with the
-# savings profile described in docs/finops-tagging.md ("£20/month plan").
+# NAT gateway) costs ~Â£200+/month. A Â£20 cap is only achievable with the
+# savings profile described in docs/finops-tagging.md ("Â£20/month plan").
 # The budget below is the guardrail that makes the cap ENFORCEABLE: alert at
 # 80%/100% and automatically STOP RDS when the absolute cap is hit.
 #
@@ -18,7 +18,7 @@ resource "aws_budgets_budget" "ai_platform" {
   name         = "ai-platform-${var.environment}-monthly-budget"
   budget_type  = "COST"
   limit_amount = var.budget_limit_amount
-  limit_unit   = "GBP"
+  limit_unit   = "USD"
   time_unit    = "MONTHLY"
 
   # Scope the budget to THIS workload only, via the FinOps tag.
@@ -85,7 +85,7 @@ resource "aws_iam_role_policy_attachment" "budget_action" {
   policy_arn = aws_iam_policy.budget_action_stop[0].arn
 }
 
-# --- Automatic guardrail: when the absolute £ cap is hit, STOP RDS ---
+# --- Automatic guardrail: when the absolute Â£ cap is hit, STOP RDS ---
 resource "aws_budgets_budget_action" "stop_rds_on_cap" {
   count = var.budget_enabled ? 1 : 0
 
@@ -120,4 +120,4 @@ resource "aws_budgets_budget_action" "stop_rds_on_cap" {
 # the node-group instance IDs. It is intentionally not wired here because node
 # groups have min_size = 1 (a hard stop needs a scale-to-zero design), and RDS
 # is the larger controllable cost. See docs/finops-tagging.md for the full
-# £20/month plan.
+# Â£20/month plan.

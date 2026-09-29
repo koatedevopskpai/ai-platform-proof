@@ -115,9 +115,9 @@ variable "budget_enabled" {
 }
 
 variable "budget_limit_amount" {
-  description = "Hard monthly budget cap in GBP"
+  description = "Hard monthly budget cap in USD (AWS Budgets only supports USD; ~GBP 20 = 26 USD)"
   type        = number
-  default     = 20
+  default     = 26
 }
 
 variable "budget_alerts_email" {
