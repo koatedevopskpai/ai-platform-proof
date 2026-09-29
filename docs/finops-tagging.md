@@ -136,8 +136,23 @@ just aspirational:
 Driven by variables: `budget_enabled`, `budget_limit_amount`, `budget_alerts_email`
 (see `terraform.tfvars.example`).
 
-> **Pre-requisite:** activate `Workload` as a cost-allocation tag in AWS Billing
-> (Cost Explorer → Cost allocation tags) or the budget's cost filter never matches.
+### Activating the `Workload` cost-allocation tag
+
+A budget `TagKeyValue` filter only matches once `Workload` is **activated** as a cost
+allocation tag in Cost Explorer. This is automated and account-level:
+
+- **Terraform** — `infra/terraform/environments/dev/cost-allocation-tags.tf` creates
+  `aws_ce_cost_allocation_tag` (`tag_key = "Workload"`, `status = "Active"`, via a
+  `us-east-1` provider alias) and `depends_on` the tagged resources so they exist
+  first. Apply once, and it stays active.
+- **Manual/CLI fallback** — `scripts/aws/activate-cost-allocation-tags.ps1`
+  (`-Activate`) checks availability and activates the tag if present.
+
+> **Ordering & timing:** Cost Explorer only lists a tag after it is applied to a
+> resource, and AWS can take **up to 24 hours** to surface it. If you run `apply`
+> (or the script) before any `Workload`-tagged resource exists, it fails with a
+> clear message — deploy first, wait, re-apply/re-run. `Workload` is not yet
+> available in the account until your first `terraform apply`.
 
 ### The £20/month reality check
 
