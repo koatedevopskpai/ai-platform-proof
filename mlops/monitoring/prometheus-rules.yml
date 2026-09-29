@@ -1,0 +1,44 @@
+groups:
+  - name: rag-api
+    rules:
+      - record: rag:request_duration_seconds:rate5m
+        expr: |
+          sum(rate(rag_request_duration_seconds_sum[5m]))
+          / sum(rate(rag_request_duration_seconds_count[5m]))
+
+      - alert: RAGHighErrorRate
+        expr: |
+          sum(rate(rag_request_errors_total[5m]))
+          / sum(rate(rag_request_duration_seconds_count[5m])) > 0.05
+        for: 10m
+        labels:
+          severity: page
+        annotations:
+          summary: "RAG error rate above 5% for 10 minutes"
+
+      - alert: RAGHighLatency
+        expr: |
+          histogram_quantile(0.95, sum by (le) (rate(rag_request_duration_seconds_bucket[5m]))) > 2
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "RAG p95 latency above 2s"
+
+      - alert: EvalGateRegression
+        expr: |
+          rag_eval_aggregate_score < 0.80
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: "Scheduled evaluation aggregate fell below 0.80"
+
+      - alert: EmbeddingDriftDetected
+        expr: |
+          rag_embedding_drift_p_value < 0.05
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Embedding distribution drift detected against reference window"

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / TypeScript
+node_modules/
+dist/
+*.tsbuildinfo
+.npm/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+TestResults/
+
+# Terraform
+infra/terraform/**/.terraform/
+infra/terraform/**/*.tfstate*
+infra/terraform/**/*.tfvars
+!infra/terraform/**/*.tfvars.example
+infra/terraform/**/crash.log
+
+# Helm
+infra/helm/**/charts/*.tgz
+!infra/helm/**/Chart.lock
+
+# Docker / local
+docker-compose.override.yml
+.env
+
+# Local developer docs (never commit these)
+ai-platform-code-along.txt
+*CODE-ALONG*.txt
+
+# Ephemeral AWS lease / local config (machine-specific)
+.ephemeral-lease.json
+scripts/**/config.local.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

@@ -1,0 +1,9 @@
+image:
+  repository: ai-platform/evaluator
+  tag: latest
+  pullPolicy: IfNotPresent
+schedule: "0 */6 * * *"
+threshold: 0.80
+dataset: /app/datasets/eval_set.jsonl
+activeDeadlineSeconds: 600
+restartPolicy: Never

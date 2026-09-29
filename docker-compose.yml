@@ -1,0 +1,105 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ai
+      POSTGRES_PASSWORD: ai
+      POSTGRES_DB: aiplatform
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    labels:
+      finops.cost-center: cc-ai-mlops
+      finops.workload: ai-platform-proof
+      finops.environment: local-dev
+      finops.owner: koate.kpai@outlook.com
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai -d aiplatform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  rag-api:
+    build: ./services/rag-api
+    environment:
+      DATABASE_URL: postgresql+psycopg://ai:ai@postgres:5432/aiplatform
+      EMBEDDING_MODE: mock
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      EVALUATOR_URL: http://evaluator:8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8010:8000"
+    labels:
+      finops.cost-center: cc-ai-mlops
+      finops.workload: ai-platform-proof
+      finops.environment: local-dev
+      finops.owner: koate.kpai@outlook.com
+
+  dotnet-ingest:
+    build: ./services/dotnet-ingest
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=aiplatform;Username=ai;Password=ai"
+      RAG_API_URL: http://rag-api:8000
+      EMBEDDING_MODE: mock
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    labels:
+      finops.cost-center: cc-ai-mlops
+      finops.workload: ai-platform-proof
+      finops.environment: local-dev
+      finops.owner: koate.kpai@outlook.com
+
+  gateway:
+    build: ./services/gateway
+    environment:
+      PORT: 3000
+      RAG_API_URL: http://rag-api:8000
+      DOTNET_API_URL: http://dotnet-ingest:8080
+    depends_on:
+      - rag-api
+      - dotnet-ingest
+    ports:
+      - "3002:3000"
+    labels:
+      finops.cost-center: cc-ai-mlops
+      finops.workload: ai-platform-proof
+      finops.environment: local-dev
+      finops.owner: koate.kpai@outlook.com
+
+  evaluator:
+    build: ./services/evaluator
+    environment:
+      EMBEDDING_MODE: mock
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    command: ["python", "-m", "evaluator", "--dataset", "/app/datasets/eval_set.jsonl", "--threshold", "0.80"]
+    depends_on:
+      - postgres
+
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    volumes:
+      - ./mlops/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - ./mlops/monitoring/grafana-dashboard.json:/var/lib/grafana/dashboards/ai-platform.json:ro
+    ports:
+      - "3001:3000"
+
+volumes:
+  pgdata:

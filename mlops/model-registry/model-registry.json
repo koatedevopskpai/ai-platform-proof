@@ -1,0 +1,42 @@
+{
+  "format_version": "1.0",
+  "models": [
+    {
+      "name": "embedding-3-small",
+      "provider": "openai",
+      "version": "text-embedding-3-small",
+      "dimensions": 1536,
+      "registered": "2026-09-01",
+      "status": "production",
+      "deployed_by": "ci",
+      "eval_history": [
+        {
+          "date": "2026-09-28",
+          "map@4": 0.91,
+          "ndcg@4": 0.93,
+          "faithfulness": 0.94,
+          "answer_relevancy": 0.90,
+          "gate": "passed"
+        }
+      ]
+    },
+    {
+      "name": "llm-judge-gpt-4o-mini",
+      "provider": "openai",
+      "version": "gpt-4o-mini",
+      "role": "judge",
+      "registered": "2026-09-10",
+      "status": "production",
+      "deployed_by": "mlops"
+    },
+    {
+      "name": "rag-retrieval-hybrid-v1",
+      "provider": "internal",
+      "version": "dense(0.7)+keyword(0.3)",
+      "role": "retriever-config",
+      "registered": "2026-09-15",
+      "status": "candidate",
+      "note": "AB-testing fusion weights against dense-only"
+    }
+  ]
+}

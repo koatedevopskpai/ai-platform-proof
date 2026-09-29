@@ -1,0 +1,66 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  AWS_REGION: eu-west-2
+  ECR_REPOSITORY_BASE: ai-platform
+  CLUSTER_NAME: ai-platform-dev
+  HELM_RELEASE: ai-platform
+
+jobs:
+  build-and-deploy:
+    name: Build images, push to ECR, helm upgrade
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push gateway
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/ai-platform/gateway:${{ github.sha }} -t ${{ steps.ecr.outputs.registry }}/ai-platform/gateway:latest services/gateway
+          docker push ${{ steps.ecr.outputs.registry }}/ai-platform/gateway --all-tags
+
+      - name: Build and push rag-api
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/ai-platform/rag-api:${{ github.sha }} -t ${{ steps.ecr.outputs.registry }}/ai-platform/rag-api:latest services/rag-api
+          docker push ${{ steps.ecr.outputs.registry }}/ai-platform/rag-api --all-tags
+
+      - name: Build and push dotnet-ingest
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/ai-platform/dotnet-ingest:${{ github.sha }} -t ${{ steps.ecr.outputs.registry }}/ai-platform/dotnet-ingest:latest services/dotnet-ingest
+          docker push ${{ steps.ecr.outputs.registry }}/ai-platform/dotnet-ingest --all-tags
+
+      - name: Build and push evaluator
+        run: |
+          docker build -t ${{ steps.ecr.outputs.registry }}/ai-platform/evaluator:${{ github.sha }} -t ${{ steps.ecr.outputs.registry }}/ai-platform/evaluator:latest services/evaluator
+          docker push ${{ steps.ecr.outputs.registry }}/ai-platform/evaluator --all-tags
+
+      - name: Configure kubectl
+        run: aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }} --region ${{ env.AWS_REGION }}
+
+      - name: Deploy with Helm
+        run: |
+          helm upgrade --install ${{ env.HELM_RELEASE }} infra/helm/ai-platform \
+            --set global.imageRegistry=${{ steps.ecr.outputs.registry }} \
+            --set global.imageTag=${{ github.sha }} \
+            --set global.postgres.password=${{ secrets.POSTGRES_PASSWORD }} \
+            --set rag-api.openAiApiKey=${{ secrets.OPENAI_API_KEY }} \
+            --set global.finops.costCenter=${{ vars.FINOPS_COST_CENTER }} \
+            --set global.finops.budgetOwner=${{ vars.FINOPS_BUDGET_OWNER }} \
+            --set global.finops.workload=${{ vars.FINOPS_WORKLOAD }} \
+            --namespace ai-platform --create-namespace --wait

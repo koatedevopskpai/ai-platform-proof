@@ -1,0 +1,45 @@
+name: Deploy Option A (always-on box)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/**"
+      - "docker-compose.yml"
+      - "infra/helm/**"
+  workflow_dispatch:
+
+env:
+  SSH_USER: ec2-user
+
+jobs:
+  deploy-cheap:
+    name: git pull + docker compose up on the Option A box
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy over SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.CHEAP_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan "${{ secrets.CHEAP_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+          ssh -i ~/.ssh/id_ed25519 -o StrictHostKeyChecking=no \
+            ${{ env.SSH_USER }}@${{ secrets.CHEAP_HOST }} '
+            set -e
+            cd /opt/ai-platform-proof
+            git pull --ff-only || true
+            docker compose up -d --build
+            sleep 10
+            curl -fsS http://localhost:3002/health
+          '
+
+      - name: Confirm public URL is healthy
+        run: |
+          curl -fsS "http://${{ secrets.CHEAP_HOST }}:3002/health"
+          echo ""
+          echo "Option A gateway is live."
+
+  # NOTE: set GitHub secrets CHEAP_HOST (the box's elastic IP) and CHEAP_SSH_KEY
+  # (the PRIVATE key matching the ssh_public_key set in cheap/tfvars).

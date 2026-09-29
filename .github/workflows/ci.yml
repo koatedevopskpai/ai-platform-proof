@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  dotnet:
+    name: .NET build + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/dotnet-ingest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - run: dotnet restore src/IngestApi/IngestApi.csproj
+      - run: dotnet build src/IngestApi/IngestApi.csproj --no-restore -c Release
+      - run: dotnet test tests/IngestApi.Tests/IngestApi.Tests.csproj --no-restore -c Release
+
+  node:
+    name: TypeScript build + test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/gateway
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: services/gateway/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm test
+
+  python:
+    name: Python build + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install rag-api deps
+        run: pip install -r services/rag-api/requirements-dev.txt
+      - name: Test rag-api
+        run: python -m pytest services/rag-api/tests
+      - name: Install evaluator deps
+        run: pip install -r services/evaluator/requirements-dev.txt
+      - name: Test evaluator
+        run: python -m pytest services/evaluator/tests

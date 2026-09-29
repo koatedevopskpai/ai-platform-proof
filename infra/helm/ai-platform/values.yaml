@@ -1,0 +1,63 @@
+global:
+  environment: dev
+  imageRegistry: 123456789012.dkr.ecr.eu-west-2.amazonaws.com
+  imageTag: latest
+
+  # --- FinOps cost-allocation metadata (labels on every workload) ---
+  finops:
+    costCenter: cc-ai-mlops
+    budgetOwner: platform-leads
+    workload: ai-platform-proof
+
+  postgres:
+    host: ai-platform-dev-pgvector.cexample.eu-west-2.rds.amazonaws.com
+    database: aiplatform
+    username: ai
+    password: "" # injected via Secret in production
+
+gateway:
+  replicaCount: 2
+  image:
+    repository: ai-platform/gateway
+  service:
+    type: ClusterIP
+    port: 3000
+  ingress:
+    enabled: true
+    host: ai.example.com
+  rateLimitMax: 100
+
+rag-api:
+  replicaCount: 2
+  image:
+    repository: ai-platform/rag-api
+  service:
+    port: 8000
+  embeddingMode: openai
+  openAiBaseUrl: https://api.openai.com/v1
+  openAiApiKey: "" # via Secret
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 8
+    targetCpu: 70
+
+dotnet-ingest:
+  replicaCount: 2
+  image:
+    repository: ai-platform/dotnet-ingest
+  service:
+    port: 8080
+  embeddingMode: openai
+  hpa:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 6
+    targetCpu: 70
+
+evaluator:
+  image:
+    repository: ai-platform/evaluator
+  schedule: "0 */6 * * *"
+  threshold: 0.80
+  dataset: /app/datasets/eval_set.jsonl

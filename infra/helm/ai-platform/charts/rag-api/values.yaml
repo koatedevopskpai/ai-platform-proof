@@ -1,0 +1,23 @@
+replicaCount: 1
+image:
+  repository: ai-platform/rag-api
+  tag: latest
+  pullPolicy: IfNotPresent
+service:
+  port: 8000
+embeddingMode: mock
+openAiBaseUrl: ""
+openAiApiKey: ""
+ragTopK: 4
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+hpa:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 8
+  targetCpu: 70

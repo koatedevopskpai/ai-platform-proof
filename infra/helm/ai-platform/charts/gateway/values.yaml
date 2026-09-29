@@ -1,0 +1,19 @@
+replicaCount: 1
+image:
+  repository: ai-platform/gateway
+  tag: latest
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  port: 3000
+ingress:
+  enabled: false
+  host: ai.example.com
+rateLimitMax: 100
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi

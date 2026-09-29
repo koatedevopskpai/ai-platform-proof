@@ -1,0 +1,8 @@
+{
+  "region": "eu-west-2",
+  "tfDir": "../../infra/terraform/environments/cheap",
+  "sshUser": "ec2-user",
+  "sshKey": "~/.ssh/ai-platform-cheap", 
+  "estimatedMonthly": 10,
+  "estimatedPerHr": 0.0145
+}

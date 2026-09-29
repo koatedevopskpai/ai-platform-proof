@@ -1,0 +1,22 @@
+replicaCount: 1
+image:
+  repository: ai-platform/dotnet-ingest
+  tag: latest
+  pullPolicy: IfNotPresent
+service:
+  port: 8080
+embeddingMode: mock
+openAiBaseUrl: ""
+openAiApiKey: ""
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+hpa:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCpu: 70

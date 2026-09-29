@@ -1,0 +1,35 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "evaluator.fullname" . }}
+  labels:
+    {{- include "evaluator.labels" . | nindent 4 }}
+spec:
+  schedule: "{{ .Values.schedule }}"
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: {{ .Values.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "evaluator.labels" . | nindent 12 }}
+        spec:
+          restartPolicy: {{ .Values.restartPolicy }}
+          containers:
+            - name: evaluator
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              args:
+                - "--dataset"
+                - "{{ .Values.dataset }}"
+                - "--threshold"
+                - "{{ .Values.threshold }}"
+                - "--report"
+                - "/tmp/eval-report.json"
+              env:
+                - name: EMBEDDING_MODE
+                  value: "{{ .Values.global.embeddingMode | default "mock" }}"
+                - name: OPENAI_BASE_URL
+                  value: "{{ .Values.global.openAiBaseUrl | default "" }}"
+                - name: OPENAI_API_KEY
+                  value: "{{ .Values.global.openAiApiKey | default "" }}"

@@ -1,0 +1,22 @@
+region             = "eu-west-2"
+environment        = "cheap"
+az                 = "eu-west-2a"
+instance_type      = "t4g.small"   # 2GB; use t3.medium (4GB) if on-box Docker builds are slow/OOM
+root_volume_size   = 30
+repo_url           = "https://github.com/koatedevopskpai/ai-platform-proof.git"
+ssh_public_key     = ""            # paste your public key to enable SSH deploy
+ssh_cidr           = ["0.0.0.0/0"] # restrict to your office/VPN IP ideally
+
+# FinOps tagging taxonomy
+cost_center         = "cc-ai-mlops"
+business_unit       = "data-platform"
+tag_owner           = "koate.kpai@outlook.com"
+budget_owner        = "platform-leads"
+workload            = "ai-platform-proof"
+cost_category       = "engineering-rnd"
+data_classification = "public-reference"
+
+# Budget guardrail (combined with Option B ephemeral spend)
+budget_enabled      = true
+budget_limit_amount = 20
+budget_alerts_email = "koate.kpai@outlook.com"

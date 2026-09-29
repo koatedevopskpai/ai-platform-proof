@@ -1,0 +1,16 @@
+apiVersion: v2
+name: ai-platform
+description: Umbrella chart for the AI platform (gateway, rag-api, dotnet-ingest, evaluator)
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+
+dependencies:
+  - name: gateway
+    version: 0.1.0
+  - name: rag-api
+    version: 0.1.0
+  - name: dotnet-ingest
+    version: 0.1.0
+  - name: evaluator
+    version: 0.1.0

@@ -1,0 +1,21 @@
+region         = "eu-west-2"
+environment    = "dev"
+cluster_version = "1.31"
+node_group_size = 2
+node_instance_types = ["m5.large"]
+db_instance_class  = "db.t4g.small"
+db_username        = "ai"
+
+# FinOps tagging taxonomy — customise per environment/team
+cost_center          = "cc-ai-mlops"
+business_unit        = "data-platform"
+tag_owner            = "koate.kpai@outlook.com"
+budget_owner         = "platform-leads"
+workload             = "ai-platform-proof"
+cost_category        = "engineering-rnd"
+data_classification  = "public-reference"
+
+# Budget & cost guardrails
+budget_enabled      = true
+budget_limit_amount = 20        # hard monthly cap in GBP
+budget_alerts_email = "koate.kpai@outlook.com"

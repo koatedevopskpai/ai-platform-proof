@@ -1,0 +1,36 @@
+#!/bin/bash
+# AI Platform Option A bootstrap - single always-on box.
+set -euxo pipefail
+
+# --- 1. Install Docker + git (Amazon Linux 2023) ---
+dnf install -y docker git
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+# --- 2. Docker Compose v2 plugin ---
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/v2.29.7/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+# --- 3. Clone the repo (set var.repo_url to your public repo) ---
+if [ ! -d /opt/ai-platform-proof ]; then
+  git clone ${repo_url} /opt/ai-platform-proof
+else
+  git -C /opt/ai-platform-proof pull --ff-only || true
+fi
+
+# --- 4. Build + start the stack (same services as local/option B) ---
+cd /opt/ai-platform-proof
+docker compose up -d --build
+
+# --- 5. Wait for the gateway health endpoint ---
+for i in $(seq 1 60); do
+  if curl -fsS http://localhost:3002/health >/dev/null 2>&1; then
+    echo "AI PLATFORM READY at http://localhost:3002/health"
+    exit 0
+  fi
+  sleep 5
+done
+echo "AI PLATFORM STARTUP TIMED OUT" >&2
+exit 1

@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dotnet-ingest.fullname" . }}
+  labels:
+    {{- include "dotnet-ingest.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: dotnet-ingest
+  template:
+    metadata:
+      labels:
+        {{- include "dotnet-ingest.labels" . | nindent 8 }}
+    spec:
+      containers:
+        - name: dotnet-ingest
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.port }}
+          env:
+            - name: ConnectionStrings__Default
+              value: "Host={{ .Values.global.postgres.host }};Port=5432;Database={{ .Values.global.postgres.database }};Username={{ .Values.global.postgres.username }};Password={{ .Values.global.postgres.password }}"
+            - name: Embedding__Mode
+              value: "{{ .Values.embeddingMode }}"
+            - name: OpenAI__BaseUrl
+              value: "{{ .Values.openAiBaseUrl }}"
+            - name: OpenAI__ApiKey
+              value: "{{ .Values.openAiApiKey }}"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.service.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dotnet-ingest
+  labels:
+    app: dotnet-ingest
+spec:
+  type: ClusterIP
+  selector:
+    app: dotnet-ingest
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: {{ .Values.service.port }}
+{{- if .Values.hpa.enabled }}
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: dotnet-ingest
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: dotnet-ingest
+  minReplicas: {{ .Values.hpa.minReplicas }}
+  maxReplicas: {{ .Values.hpa.maxReplicas }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: {{ .Values.hpa.targetCpu }}
+{{- end }}

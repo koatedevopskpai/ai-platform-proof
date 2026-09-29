@@ -1,0 +1,16 @@
+{
+  "region": "eu-west-2",
+  "tfDir": "../../infra/terraform/environments/dev",
+  "helmChartDir": "../../infra/helm/ai-platform",
+  "leaseFile": "../../.ephemeral-lease.json",
+  "maxLeaseHours": 8,
+  "alertsEmail": "koate.kpai@outlook.com",
+  "rates": {
+    "eksControlPlanePerHr": 0.074,
+    "nodesPerHr": 0.15,
+    "rdsPerHr": 0.024,
+    "natGatewayPerHr": 0.036,
+    "storagePerHr": 0.005,
+    "estimatedTotalPerHr": 0.29
+  }
+}
