@@ -1,5 +1,7 @@
 # AI Platform Proof
 
+Start with the [evidence index](EVIDENCE.md) for source, tests, dated results and limits.
+
 Public reference implementation: TypeScript gateway, Python RAG API and .NET
 ingestion service backed by PostgreSQL/pgvector. Synthetic mock embeddings are
 the default. This repository does not establish commercial production operation.
