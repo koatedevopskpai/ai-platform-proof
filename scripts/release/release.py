@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import sys
 import time
 from urllib.request import urlopen
 
@@ -13,7 +14,11 @@ SERVICES = ('gateway', 'rag-api', 'dotnet-ingest')
 
 
 def run(*args, cwd=None):
-    return subprocess.run(args, cwd=cwd, check=True, capture_output=True, text=True).stdout.strip()
+    result = subprocess.run(args, cwd=cwd, capture_output=True, text=True)
+    if result.returncode:
+        print(result.stdout[-12000:], result.stderr[-12000:], file=sys.stderr)
+        result.check_returncode()
+    return result.stdout.strip()
 
 
 def sha(path):
