@@ -11,7 +11,8 @@ interface HealthResult {
 async function checkHealth(url: string): Promise<HealthResult> {
   try {
     const res = await fetch(`${url}/health`, { signal: AbortSignal.timeout(2000) });
-    return { service: url, status: res.ok ? "ok" : "error" };
+    const body = await res.json() as { status?: string };
+    return { service: url, status: res.ok && body.status === "ok" ? "ok" : "error" };
   } catch {
     return { service: url, status: "unreachable" };
   }
