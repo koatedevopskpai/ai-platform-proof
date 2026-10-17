@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+import shutil
 
 spec = importlib.util.spec_from_file_location('release', Path(__file__).parents[1] / 'scripts/release/release.py')
 release = importlib.util.module_from_spec(spec)
@@ -15,8 +16,11 @@ class ReleaseTests(unittest.TestCase):
         images = {name: 'sha256:' + '1' * 64 for name in (*release.SERVICES, 'postgres')}
         release.save(folder / 'compose.json', {'services': {name: {'image': image} for name, image in images.items()}})
         (folder / 'images.tar').write_bytes(b'synthetic archive, never sent to Docker')
+        for filename in release.GATE_FILES:
+            shutil.copy2(Path(release.__file__).with_name(filename), folder / filename)
         release.save(folder / 'manifest.json', {'schema': 1, 'source_revision': source,
             'execution_mode': 'synthetic_mock', 'images': images,
+            'gate_files': {filename: release.sha(folder / filename) for filename in release.GATE_FILES},
             'archive_sha256': release.sha(folder / 'images.tar'), 'compose_sha256': release.sha(folder / 'compose.json')})
         return source
 

@@ -1,0 +1,1 @@
+{"policy_id":"o02-binary-fixture-v1","scope":"Three synthetic HTTP acceptance cases; not semantic quality or a benchmark","mean_floors":{"faithfulness":1.0,"answer_relevancy":1.0},"per_case_floors":{"faithfulness":1.0,"answer_relevancy":1.0},"rationale":"All binary fixture predicates must pass. No model-score threshold calibration is implied."}

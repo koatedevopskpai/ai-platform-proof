@@ -35,7 +35,7 @@ jobs:
           set -euo pipefail
           test -n "$HOST"
           ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "mkdir -p releases/$GITHUB_SHA-$GITHUB_RUN_ID"
-          scp -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release/"* scripts/release/release.py "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/"
+          scp -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release/"* "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/"
           ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "python3 releases/$GITHUB_SHA-$GITHUB_RUN_ID/release.py deploy --bundle releases/$GITHUB_SHA-$GITHUB_RUN_ID --expected-source $GITHUB_SHA --receipt releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json"
       - name: Retrieve receipt including failed deployment
         if: always()

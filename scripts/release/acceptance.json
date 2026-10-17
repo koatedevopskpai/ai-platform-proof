@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "dataset_id": "o02-synthetic-acceptance-v1",
+  "execution_mode": "synthetic_mock",
+  "documents": [
+    {"id": "o02-refund", "content": "Full refunds are available within 30 days of purchase."},
+    {"id": "o02-software", "content": "Opened software is not refundable."},
+    {"id": "o02-meals", "content": "The daily meal expense limit is GBP 25."}
+  ],
+  "cases": [
+    {"id": "refund", "question": "What is the refund window?", "source_id": "o02-refund", "required_phrases": ["30 days"], "forbidden_phrases": ["never permitted", "unlimited"]},
+    {"id": "software", "question": "Is opened software refundable?", "source_id": "o02-software", "required_phrases": ["not refundable"], "forbidden_phrases": ["always refundable", "unlimited"]},
+    {"id": "meals", "question": "What is the daily meal expense limit?", "source_id": "o02-meals", "required_phrases": ["gbp 25"], "forbidden_phrases": ["unlimited", "never permitted"]}
+  ]
+}

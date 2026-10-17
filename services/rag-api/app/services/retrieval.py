@@ -22,10 +22,10 @@ class RetrievalService:
             """
             WITH dense AS (
                 SELECT id, content,
-                       1 - (embedding <=> :qvec) AS dense_score
+                       1 - (embedding <=> CAST(:qvec AS vector)) AS dense_score
                 FROM documents
                 WHERE embedding IS NOT NULL
-                ORDER BY embedding <=> :qvec
+                ORDER BY embedding <=> CAST(:qvec AS vector)
                 LIMIT :k
             ),
             kw AS (
