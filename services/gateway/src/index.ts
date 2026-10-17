@@ -1,7 +1,16 @@
 import Fastify from "fastify";
+import { randomBytes } from "node:crypto";
 import rateLimit from "@fastify/rate-limit";
 import { pathToFileURL } from "node:url";
 import { loadConfig, type Config } from "./config.js";
+
+declare module "fastify" {
+  interface FastifyRequest {
+    traceId: string;
+    spanId: string;
+    startedAt: number;
+  }
+}
 
 interface HealthResult {
   service: string;
@@ -19,7 +28,20 @@ async function checkHealth(url: string): Promise<HealthResult> {
 }
 
 export async function buildApp(config: Config = loadConfig()) {
-  const app = Fastify({ logger: true });
+  const app = Fastify({ logger: true, disableRequestLogging: true });
+  app.addHook("onRequest", async (req, reply) => {
+    const incoming = req.headers["x-trace-id"];
+    req.traceId = typeof incoming === "string" && /^[0-9a-f]{32}$/.test(incoming) ? incoming : randomBytes(16).toString("hex");
+    req.spanId = randomBytes(8).toString("hex");
+    req.startedAt = performance.now();
+    reply.header("x-trace-id", req.traceId);
+  });
+  app.addHook("onResponse", async (req, reply) => {
+    app.log.info({event: "span", trace_id: req.traceId, span_id: req.spanId,
+      parent_span_id: null, operation: "http.request", component: "gateway",
+      duration_ms: performance.now() - req.startedAt, http_status: reply.statusCode,
+      status: reply.statusCode >= 400 ? "error" : "ok"});
+  });
 
   await app.register(rateLimit, { max: config.rateLimitMax, timeWindow: "1 minute" });
 
@@ -33,35 +55,37 @@ export async function buildApp(config: Config = loadConfig()) {
     return { status: allOk ? "ok" : "degraded", services };
   });
 
-  app.post("/ingest", async (req, reply) => {
-    const res = await fetch(`${config.dotnetApiUrl}/ingest`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(req.body ?? {}),
+  for (const [route, target, operation] of [
+    ["/ingest", config.dotnetApiUrl, "tool.ingest"],
+    ["/search", config.ragApiUrl, "tool.search"],
+    ["/rag", config.ragApiUrl, "rag.application"],
+  ]) {
+    app.post(route, async (req, reply) => {
+      const spanId = randomBytes(8).toString("hex");
+      const started = performance.now();
+      let status = "error";
+      let errorType: string | undefined;
+      try {
+        const res = await fetch(`${target}${route}`, {
+          method: "POST",
+          headers: {"content-type": "application/json", "x-trace-id": req.traceId, "x-parent-span-id": spanId},
+          body: JSON.stringify(req.body ?? {}), signal: AbortSignal.timeout(15000),
+        });
+        const body = await res.json();
+        status = res.ok ? "ok" : "error";
+        reply.code(res.status);
+        return body;
+      } catch (error) {
+        errorType = error instanceof Error ? error.name : "UnknownError";
+        reply.code(503);
+        return {error: "upstream_unavailable", trace_id: req.traceId};
+      } finally {
+        app.log.info({event: "span", trace_id: req.traceId, span_id: spanId,
+          parent_span_id: req.spanId, component: route === "/ingest" ? "dotnet-ingest" : "rag-api",
+          operation, status, error_type: errorType, duration_ms: performance.now() - started});
+      }
     });
-    reply.code(res.status);
-    return res.json();
-  });
-
-  app.post("/search", async (req, reply) => {
-    const res = await fetch(`${config.ragApiUrl}/search`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(req.body ?? {}),
-    });
-    reply.code(res.status);
-    return res.json();
-  });
-
-  app.post("/rag", async (req, reply) => {
-    const res = await fetch(`${config.ragApiUrl}/rag`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(req.body ?? {}),
-    });
-    reply.code(res.status);
-    return res.json();
-  });
+  }
 
   return app;
 }
