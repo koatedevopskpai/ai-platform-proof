@@ -40,8 +40,11 @@ unchanged. These binary fixture predicates do not establish semantic or live LLM
 quality. See [O02](docs/O02.md). A dated rollback/provider-failure drill restored the last accepted images and
 verified deterministic fallback against the same three cases. See [O03](docs/O03.md)
 for timings and limits: operator-led recovery, simulated provider outage, no
-automatic live-provider failback or uptime guarantee. Incident observability
-still requires O04 evidence. Existing evaluator and monitoring files
+automatic live-provider failback or uptime guarantee. A bounded incident drill emitted correlated request/retrieval/model/tool spans,
+identified a pgvector failure and fired/cleared a local acceptance-error alert.
+See [O04](docs/O04.md) and the [incident runbook](docs/incident-runbook.md).
+This is custom local JSON tracing/alert evidence, not a deployed monitoring backend
+or continuous production observability. Existing evaluator and monitoring files
 are not proof that those operational behaviours work. No uptime, production
 readiness, broad evaluation quality or live EKS deployment is claimed.
 
