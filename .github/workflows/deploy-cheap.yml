@@ -41,7 +41,10 @@ jobs:
         if: always()
         env:
           HOST: ${{ secrets.CHEAP_HOST }}
-        run: scp -o StrictHostKeyChecking=yes "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json" "$RUNNER_TEMP/release/receipt.json"
+        run: |
+          set -euo pipefail
+          scp -o StrictHostKeyChecking=yes "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json" "$RUNNER_TEMP/release/receipt.json"
+          ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "tar --exclude=images.tar -czf - -C releases/$GITHUB_SHA-$GITHUB_RUN_ID ." > "$RUNNER_TEMP/release/evidence.tar.gz"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,3 +53,4 @@ jobs:
             ${{ runner.temp }}/release/manifest.json
             ${{ runner.temp }}/release/compose.json
             ${{ runner.temp }}/release/receipt.json
+            ${{ runner.temp }}/release/evidence.tar.gz
