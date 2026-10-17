@@ -38,16 +38,18 @@ class RAGService:
             f"QUESTION: {redacted}\nANSWER:"
         )
 
-        answer, used_llm = self._generate(prompt, contexts)
+        answer, used_llm, reason = self._generate(prompt, contexts)
 
         return {
             "answer": answer,
             "sources": [c["id"] for c in contexts],
             "fallback": not used_llm,
             "blocked": False,
+            "generation_mode": "provider" if used_llm else "deterministic_fallback",
+            "fallback_reason": reason,
         }
 
-    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool]:
+    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool, str | None]:
         if settings.openai_api_key and contexts:
             try:
                 resp = httpx.post(
@@ -61,10 +63,19 @@ class RAGService:
                     timeout=30.0,
                 )
                 resp.raise_for_status()
-                return resp.json()["choices"][0]["message"]["content"].strip(), True
-            except (httpx.HTTPError, KeyError):
-                pass
-        return self._deterministic_fallback(prompt, contexts), False
+                answer = resp.json()["choices"][0]["message"]["content"]
+                if not isinstance(answer, str) or not answer.strip():
+                    raise ValueError("empty provider answer")
+                return answer.strip(), True, None
+            except httpx.HTTPStatusError as exc:
+                reason = f"provider_http_{exc.response.status_code}"
+            except httpx.HTTPError:
+                reason = "provider_transport_error"
+            except (KeyError, ValueError, TypeError, IndexError):
+                reason = "provider_invalid_response"
+            return self._deterministic_fallback(prompt, contexts), False, reason
+        reason = "no_context" if not contexts else "mock_generation"
+        return self._deterministic_fallback(prompt, contexts), False, reason
 
     @staticmethod
     def _deterministic_fallback(prompt: str, contexts: Sequence[dict]) -> str:
