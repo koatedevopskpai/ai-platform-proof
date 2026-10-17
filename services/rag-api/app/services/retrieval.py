@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.telemetry import span
 
 
 class RetrievalService:
@@ -12,6 +13,12 @@ class RetrievalService:
         self.session = session
 
     def search(
+        self, query_embedding: list[float], top_k: int | None = None, query_text: str = ""
+    ) -> list[dict]:
+        with span('retrieval.search', 'pgvector'):
+            return self._search(query_embedding, top_k, query_text)
+
+    def _search(
         self,
         query_embedding: list[float],
         top_k: int | None = None,

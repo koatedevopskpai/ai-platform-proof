@@ -12,6 +12,7 @@ from typing import Sequence
 import httpx
 
 from app.core.config import settings
+from app.core.telemetry import span
 
 
 class EmbeddingService:
@@ -25,7 +26,8 @@ class EmbeddingService:
         return [self._embed_mock(t) for t in texts]
 
     def embed(self, text: str) -> list[float]:
-        return self.embed_texts([text])[0]
+        with span('embedding.embed', 'embedding'):
+            return self.embed_texts([text])[0]
 
     def _embed_mock(self, text: str) -> list[float]:
         """Deterministic seeded vector from hashed character trigrams.

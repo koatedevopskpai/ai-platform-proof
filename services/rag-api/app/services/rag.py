@@ -7,6 +7,7 @@ from typing import Sequence
 import httpx
 
 from app.core.config import settings
+from app.core.telemetry import span
 
 
 class RAGService:
@@ -38,7 +39,11 @@ class RAGService:
             f"QUESTION: {redacted}\nANSWER:"
         )
 
-        answer, used_llm, reason = self._generate(prompt, contexts)
+        with span('model.generate', 'rag-model') as observation:
+            answer, used_llm, reason = self._generate(prompt, contexts)
+            observation.update(generation_mode='provider' if used_llm else 'deterministic_fallback', fallback_reason=reason)
+            if reason and reason.startswith('provider_'):
+                observation.update(status='error', error_type=reason)
 
         return {
             "answer": answer,
