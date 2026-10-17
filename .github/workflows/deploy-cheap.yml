@@ -35,13 +35,16 @@ jobs:
           set -euo pipefail
           test -n "$HOST"
           ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "mkdir -p releases/$GITHUB_SHA-$GITHUB_RUN_ID"
-          scp -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release/"* scripts/release/release.py "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/"
+          scp -o StrictHostKeyChecking=yes "$RUNNER_TEMP/release/"* "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/"
           ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "python3 releases/$GITHUB_SHA-$GITHUB_RUN_ID/release.py deploy --bundle releases/$GITHUB_SHA-$GITHUB_RUN_ID --expected-source $GITHUB_SHA --receipt releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json"
       - name: Retrieve receipt including failed deployment
         if: always()
         env:
           HOST: ${{ secrets.CHEAP_HOST }}
-        run: scp -o StrictHostKeyChecking=yes "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json" "$RUNNER_TEMP/release/receipt.json"
+        run: |
+          set -euo pipefail
+          scp -o StrictHostKeyChecking=yes "ec2-user@$HOST:releases/$GITHUB_SHA-$GITHUB_RUN_ID/receipt.json" "$RUNNER_TEMP/release/receipt.json"
+          ssh -o StrictHostKeyChecking=yes "ec2-user@$HOST" "tar --exclude=images.tar -czf - -C releases/$GITHUB_SHA-$GITHUB_RUN_ID ." > "$RUNNER_TEMP/release/evidence.tar.gz"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -50,3 +53,4 @@ jobs:
             ${{ runner.temp }}/release/manifest.json
             ${{ runner.temp }}/release/compose.json
             ${{ runner.temp }}/release/receipt.json
+            ${{ runner.temp }}/release/evidence.tar.gz
