@@ -37,8 +37,11 @@ A three-case synthetic HTTP candidate gate now runs before promotion, using the
 actual candidate gateway/application responses and E04 hard checks. A wrong-answer
 image and a missing dataset both blocked promotion while active images stayed
 unchanged. These binary fixture predicates do not establish semantic or live LLM
-quality. See [O02](docs/O02.md). Rollback/fallback and incident observability still
-require O03 and O04 evidence respectively. Existing evaluator and monitoring files
+quality. See [O02](docs/O02.md). A dated rollback/provider-failure drill restored the last accepted images and
+verified deterministic fallback against the same three cases. See [O03](docs/O03.md)
+for timings and limits: operator-led recovery, simulated provider outage, no
+automatic live-provider failback or uptime guarantee. Incident observability
+still requires O04 evidence. Existing evaluator and monitoring files
 are not proof that those operational behaviours work. No uptime, production
 readiness, broad evaluation quality or live EKS deployment is claimed.
 
