@@ -49,3 +49,5 @@ scripts/**/config.local.json
 Thumbs.db
 .idea/
 .vscode/
+# Generated release bundles, receipts and test reports
+artifacts/
