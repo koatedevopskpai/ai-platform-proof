@@ -74,6 +74,7 @@ def evaluate(base, dataset_path, provenance, request=post, policy_path=None):
             explicit_mock = answer.get('fallback') is True and answer.get('blocked') is False
             row.update(generated_answer=generated, retrieved_contexts=contexts, source_ids=ids,
                        application_sources=answer.get('sources'), fallback=answer.get('fallback'),
+                       generation_mode=answer.get('generation_mode'), fallback_reason=answer.get('fallback_reason'),
                        faithfulness=float(valid_sources and supported and explicit_mock),
                        answer_relevancy=float(accepted and explicit_mock))
         except (OSError, ValueError, KeyError, TypeError) as exc:

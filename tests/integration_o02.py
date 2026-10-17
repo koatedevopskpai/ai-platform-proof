@@ -10,15 +10,9 @@ sys.path.insert(0, str(ROOT / 'scripts/release'))
 import release
 
 
-def main():
-    output = ROOT / 'artifacts/O02-integration'
-    output.mkdir(parents=True, exist_ok=False)
-    baseline = output / 'baseline'
-    manifest = release.build(ROOT, baseline)
+
+def fault_bundle(output, baseline, manifest):
     source = manifest['source_revision']
-    release.deploy(baseline, source, output / 'baseline-receipt.json', 'o02-smoke')
-    active_cmd = ['docker', 'compose', '-p', 'o02-smoke', '-f', str(baseline / 'compose.json')]
-    before = release.running_images(active_cmd, manifest['images'])
     fault = output / 'bad-candidate'; fault.mkdir()
     for filename in ('compose.json', *release.GATE_FILES):
         shutil.copy2(baseline / filename, fault / filename)
@@ -43,6 +37,19 @@ def main():
     faulty_manifest['compose_sha256'] = release.sha(fault / 'compose.json')
     faulty_manifest['archive_sha256'] = release.sha(fault / 'images.tar')
     release.save(fault / 'manifest.json', faulty_manifest)
+    return fault
+
+
+def main():
+    output = ROOT / 'artifacts/O02-integration'
+    output.mkdir(parents=True, exist_ok=False)
+    baseline = output / 'baseline'
+    manifest = release.build(ROOT, baseline)
+    source = manifest['source_revision']
+    release.deploy(baseline, source, output / 'baseline-receipt.json', 'o02-smoke')
+    active_cmd = ['docker', 'compose', '-p', 'o02-smoke', '-f', str(baseline / 'compose.json')]
+    before = release.running_images(active_cmd, manifest['images'])
+    fault = fault_bundle(output, baseline, manifest)
     try:
         release.deploy(fault, source, output / 'bad-receipt.json', 'o02-smoke')
     except ValueError as exc:
