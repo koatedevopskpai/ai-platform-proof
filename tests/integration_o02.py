@@ -24,8 +24,11 @@ def main():
         shutil.copy2(baseline / filename, fault / filename)
     build_context = output / 'fault-build'; build_context.mkdir()
     shutil.copy2(ROOT / 'tests/fixtures/unsupported_rag.py', build_context / 'rag.py')
+    base_tag = 'ai-platform/rag-api:' + source
+    if release.inspect(base_tag)['Id'] != manifest['images']['rag-api']:
+        raise ValueError('fault image base tag does not resolve to baseline image ID')
     (build_context / 'Dockerfile').write_text(
-        f"FROM {manifest['images']['rag-api']}\nCOPY rag.py /app/app/services/rag.py\n", encoding='utf-8')
+        f"FROM {base_tag}\nCOPY rag.py /app/app/services/rag.py\n", encoding='utf-8')
     tag = 'ai-platform/rag-api:o02-controlled-fault'
     release.run('docker', 'build', '--label', 'org.opencontainers.image.revision=' + source,
                 '--label', 'portfolio.fault=unsupported-answer', '-t', tag, str(build_context))

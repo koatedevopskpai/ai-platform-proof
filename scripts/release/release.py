@@ -192,6 +192,13 @@ def deploy(bundle, expected_source, receipt_path, project):
             running_images(stage_cmd, manifest['images'])
             if not report['gate']['passed']:
                 raise ValueError('candidate acceptance gate failed before promotion')
+        except Exception:
+            try:
+                logs = run(*stage_cmd, 'logs', '--no-color', '--tail', '80')
+                (stage_dir / 'candidate-diagnostics.txt').write_text(logs, encoding='utf-8')
+            except subprocess.CalledProcessError:
+                receipt['candidate_diagnostics_unavailable'] = True
+            raise
         finally:
             run(*stage_cmd, 'down', '--volumes', '--remove-orphans')
             receipt['candidate_cleanup_completed'] = True
