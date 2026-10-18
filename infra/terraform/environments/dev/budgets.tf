@@ -1,5 +1,5 @@
 # -----------------------------------------------------------------------------
-# FinOps cost guardrails â€” hard monthly budget cap + auto-stop on overrun.
+# FinOps cost guardrails â€” monthly budget threshold + auto-stop of RDS on overrun.
 #
 # NOTE ON REALITY: the default stack (EKS control plane + node group + RDS +
 # NAT gateway) costs ~Â£200+/month. A Â£20 cap is only achievable with the
