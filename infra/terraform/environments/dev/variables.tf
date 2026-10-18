@@ -115,7 +115,7 @@ variable "budget_enabled" {
 }
 
 variable "budget_limit_amount" {
-  description = "Hard monthly budget cap in USD (AWS Budgets only supports USD; ~GBP 20 = 26 USD)"
+  description = "Monthly budget threshold in USD (AWS Budgets only supports USD; ~GBP 20 = 26 USD). The action stops RDS only."
   type        = number
   default     = 26
 }

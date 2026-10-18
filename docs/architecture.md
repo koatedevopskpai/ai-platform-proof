@@ -2,7 +2,7 @@
 
 ## Goals
 
-1. Demonstrate production-grade MLOps and GenAI platform engineering in public code.
+1. Demonstrate MLOps and GenAI platform engineering in public code, with stated limits.
 2. Close the explicit skill gaps in two contract specs:
    - **AI Platform Engineer – MLOps/GenAI** (.NET/C#, MLOps, orchestration, vector stores, cloud-native)
    - **Senior AI-Enabled Software/DevOps Engineer** (TypeScript, Python, Kubernetes/Helm, Terraform, API-first)
