@@ -10,7 +10,7 @@ ssh_cidr           = ["0.0.0.0/0"] # restrict to your office/VPN IP ideally
 # FinOps tagging taxonomy
 cost_center         = "cc-ai-mlops"
 business_unit       = "data-platform"
-tag_owner           = "koate.kpai@outlook.com"
+tag_owner           = "platform-team"
 budget_owner        = "platform-leads"
 workload            = "ai-platform-proof"
 cost_category       = "engineering-rnd"
@@ -19,4 +19,4 @@ data_classification = "public-reference"
 # Budget guardrail (combined with Option B ephemeral spend)
 budget_enabled      = true
 budget_limit_amount = 26        # hard monthly cap in USD (AWS Budgets = USD only; ~GBP 20)
-budget_alerts_email = "koate.kpai@outlook.com"
+budget_alerts_email = "platform-owner@example.invalid"

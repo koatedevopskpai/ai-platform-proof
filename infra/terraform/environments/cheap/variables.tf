@@ -67,8 +67,13 @@ variable "business_unit" {
 }
 
 variable "tag_owner" {
-  type    = string
-  default = "koate.kpai@outlook.com"
+  description = "Team alias applied as the Owner tag. No committed default; supply via terraform.tfvars."
+  type        = string
+
+  validation {
+    condition     = !can(regex("@(outlook|gmail|hotmail|yahoo)\\.", var.tag_owner))
+    error_message = "Use a team alias, not a personal mailbox address."
+  }
 }
 
 variable "budget_owner" {
@@ -104,6 +109,6 @@ variable "budget_limit_amount" {
 }
 
 variable "budget_alerts_email" {
-  type    = string
-  default = "koate.kpai@outlook.com"
+  description = "Address for budget notifications. No committed default; supply via terraform.tfvars (git-ignored)."
+  type        = string
 }

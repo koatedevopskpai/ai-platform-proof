@@ -23,7 +23,7 @@ Untagged resources are invisible to finance. Tags give you:
 | `ManagedBy` | Tool that created it | `terraform` / `helm` |
 | `CostCenter` | FinOps cost centre code | `cc-ai-mlops` |
 | `BusinessUnit` | Owning business unit | `data-platform` |
-| `Owner` | Accountable team/individual | `koate.kpai@outlook.com` |
+| `Owner` | Accountable team — a team alias, never a personal mailbox | `platform-team` |
 | `BudgetOwner` | Person/team accountable for budget | `platform-leads` |
 | `Workload` | Cost grouping for a system | `ai-platform-proof` |
 | `CostCategory` | Chargeback/showback bucket | `engineering-rnd` |
@@ -113,7 +113,7 @@ labels:
   finops.cost-center: cc-ai-mlops
   finops.workload: ai-platform-proof
   finops.environment: local-dev
-  finops.owner: koate.kpai@outlook.com
+  finops.owner: platform-team
 ```
 
 (These have no billing impact locally — they keep the standard uniform and are
