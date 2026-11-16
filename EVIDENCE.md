@@ -40,6 +40,15 @@ The latency sample is tiny and uses deterministic generation. Neither is a
 production SLO, scale result or live model latency measurement. The quicker failed
 requests during an outage are not a performance improvement.
 
+**Re-run, 16 November 2026.** The O02 drill was re-executed at `050c1a0` — after the
+PostgreSQL image pin and the retrieval repair — because the October receipts describe
+the code at `3b1da4e`. Baseline passed in 47 s with both backends healthy; the
+controlled bad candidate and the physically missing dataset were both blocked before
+promotion; active image IDs were unchanged. Details, image IDs and the platform caveat
+are in the [O02 re-run section](evidence/O02.md). That run used Windows Docker Desktop
+with Linux containers rather than a Linux host, and image IDs are not comparable
+between the two runs because the postgres image is now pinned.
+
 Clean Linux checks at O04: 11 release/indicator contracts, three gateway tests and
 nine RAG tests passed. One existing dependency deprecation warning remains visible.
 Each evidence document records its tested source and later documentation handoff;
