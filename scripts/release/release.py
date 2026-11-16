@@ -15,6 +15,9 @@ from urllib.request import urlopen
 
 SERVICES = ('gateway', 'rag-api', 'dotnet-ingest')
 GATE_FILES = ('candidate_gate.py', 'gate_policy.py', 'gate-policy.json', 'acceptance.json')
+# Pinned to match Amazon RDS PostgreSQL 16.14 / pgvector 0.8.2 exactly.
+# See evidence/parity-h1.md before changing.
+POSTGRES_IMAGE = 'pgvector/pgvector:0.8.2-pg16'
 
 
 def run(*args, cwd=None):
@@ -52,8 +55,8 @@ def build(root, out):
         run('docker', 'build', '--label', f'org.opencontainers.image.revision={source}',
             '--tag', tag, str(root / 'services' / service))
         images[service] = inspect(tag)['Id']
-    run('docker', 'pull', 'pgvector/pgvector:pg16')
-    images['postgres'] = inspect('pgvector/pgvector:pg16')['Id']
+    run('docker', 'pull', POSTGRES_IMAGE)
+    images['postgres'] = inspect(POSTGRES_IMAGE)['Id']
     # No provider keys and no public database/backend ports: synthetic mock profile.
     compose = {'services': {
         'postgres': {'image': images['postgres'], 'environment': {
