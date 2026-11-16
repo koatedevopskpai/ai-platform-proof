@@ -39,21 +39,45 @@ docker run --rm --network experiments \
 |---|---|---|
 | `ddl` | `artifacts/experiments/schema.sql` — DDL generated from `Base.metadata` | The schema is the ORM's, not hand-written |
 | `gate` | `artifacts/experiments/gate.json` — verdicts for four constructed answers | The scope of the acceptance gate (§8 of `architecture.md`) |
-| `hybrid` | `artifacts/experiments/hybrid.json` — keyword contribution with the real mock embedder | Why hybrid quality is unfalsifiable in mock mode |
+| `hybrid` | `artifacts/experiments/hybrid.json` — keyword contribution with the real mock embedder | Why hybrid quality is unfalsifiable in mock mode. Reproduces the **pre-fix** SQL, like `hybrid2.py` |
 
-### `hybrid2.py`
+### `hybrid2.py` — historical baseline
+
+**This script reproduces the pre-fix SQL**, so it still reports the defects rather than the current
+behaviour. It is kept because a "before" measurement is the only thing that makes the "after"
+meaningful.
 
 Decouples embeddings from text using random unit vectors with a fixed seed, so a document can be
 lexically matchable but dense-unreachable. This is the only way to measure whether the keyword
 branch contributes anything.
 
-Produces `artifacts/experiments/hybrid2.json` and the `EXPLAIN` pair. Supports the three retrieval
-limitations in §5 of `architecture.md`:
+Produces `artifacts/experiments/hybrid2.json` and the `EXPLAIN` pair. It measured three defects in
+the original implementation:
 
 1. The keyword branch returns `k` arbitrary rows — all `ts_rank = 0.0`
 2. A maximal lexical hit contributes ~0.018 against dense ~0.114, so it cannot reach top-k even
    after the branch is fixed
 3. `plainto_tsquery` ANDs lexemes, so a natural-language question matches nothing
+
+### `rrf_acceptance.py` — current behaviour
+
+Acceptance test for the repaired retrieval path. It calls the **real `RetrievalService`**, not a
+copy of its SQL, so it fails if the shipped implementation regresses.
+
+Seeds 200 documents with embeddings decoupled from text, plus a target reachable only by keyword,
+then sends the same query vector twice — once with `query_text`, once without. Passes only if the
+target appears in the hybrid result and nowhere in the dense-only result.
+
+```sh
+docker run --rm --network experiments -v "$PWD:/src" -w /src \
+  -e DATABASE_URL="postgresql+psycopg://ai:ai@experiments-pg:5432/aiplatform" \
+  -e RAG_MIN_SCORE=0 \
+  ai-platform-experiments python scripts/experiments/rrf_acceptance.py
+```
+
+`RAG_MIN_SCORE=0` isolates the two channels; with the default floor the random-vector neighbours are
+filtered out and the comparison is less informative. Recorded result: target at rank 2, absent from
+dense-only.
 
 ### `parity_h1.py`
 
