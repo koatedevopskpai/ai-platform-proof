@@ -8,6 +8,10 @@ class Settings(BaseSettings):
     embedding_mode: str = "mock"  # "mock" | "openai"
     embedding_dim: int = 384
     embedding_model: str = "text-embedding-3-small"
+    # text-embedding-3-* accepts a dimensions parameter. Requesting the schema width keeps
+    # vector(384), the HNSW index and the RDS parity receipt valid without a migration.
+    # Set false for providers that reject the parameter; the response is width-checked either way.
+    embedding_send_dimensions: bool = True
     llm_model: str = "gpt-4o-mini"
     openai_base_url: str = ""
     openai_api_key: str = ""
