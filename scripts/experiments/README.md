@@ -101,6 +101,32 @@ docker run --rm -v "$PWD:/src" -w /src \
   ai-platform-experiments python scripts/experiments/parity_h1.py
 ```
 
+### `live_receipt.py` — live provider evidence
+
+Runs the three acceptance fixtures through **real** embeddings and **real** generation, and records
+provider, model, token counts, cost and a transcript hash. This is the artefact behind
+`evidence/live-provider.md` and the answer to "where is the AI".
+
+Requires an API key and a pgvector database:
+
+```sh
+docker run --rm --network experiments -v "$PWD:/src" -w /src \
+  -e DATABASE_URL="postgresql+psycopg://ai:ai@experiments-pg:5432/aiplatform" \
+  -e EMBEDDING_MODE=openai \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" \
+  -e OPENAI_BASE_URL="https://api.openai.com/v1" \
+  -e LLM_MODEL=gpt-4o-mini \
+  -e TARGET_LABEL=openai-both \
+  ai-platform-experiments python scripts/experiments/live_receipt.py \
+    --input-rate 0.15 --output-rate 0.60
+```
+
+To generate with a different provider, set `LLM_API_KEY`, `LLM_BASE_URL` and `LLM_MODEL`; embeddings
+stay on OpenAI. Without `--input-rate`/`--output-rate` the receipt records tokens and leaves cost
+null — an invented price is worse than no price.
+
+The key is read from the environment and never printed or written into the receipt.
+
 ## Limitations
 
 - Random embeddings test the retrieval SQL, not semantic retrieval quality
