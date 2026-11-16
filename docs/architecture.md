@@ -108,11 +108,27 @@ services can share one store.
 Documented behaviour: hybrid retrieval combining dense cosine similarity with PostgreSQL
 full-text ranking, fused as `0.7 × dense + 0.3 × keyword`, filtered by a minimum score.
 
-**Known limitation.** The keyword branch currently selects `k` rows from `documents` without a
-`tsquery` match predicate, so it does not rank by lexical relevance. Because the dense branch also
-returns `k` rows, keyword-only rows rarely survive the final ordering, and the existing GIN index
-is unused. The hybrid path is therefore weaker than the description above implies, and its
-contribution is not currently measured. See the evidence trace for the open item.
+**Known limitations, measured 16 November 2026** (`scripts/experiments/README.md`):
+
+1. The keyword branch selects `k` rows with no `tsquery` match predicate and no ordering, so it
+   returns arbitrary documents. In a 201-document run all four returned rows had `ts_rank = 0.0`,
+   and `EXPLAIN` shows a sequential scan truncated at `LIMIT 4`.
+2. The `0.7 × dense + 0.3 × keyword` fusion blends incommensurable scales. A maximal `ts_rank` of
+   ~0.061 contributes ~0.018 against dense contributions of ~0.114, so a document found only
+   lexically cannot reach top-k even after the first defect is fixed.
+3. `plainto_tsquery` ANDs every lexeme, so a natural-language question becomes
+   `'term1' & 'term2' & 'term3'` and matches nothing. The straightforward fix for the first defect
+   therefore removes keyword retrieval entirely.
+
+The GIN index exists and is reachable as soon as a match predicate is added
+(`Bitmap Index Scan on ix_documents_content_tsv`); its presence records the intended clause that
+was never written.
+
+The intended repair is reciprocal rank fusion over `websearch_to_tsquery`, with an acceptance test
+requiring a lexically-only document to reach the fused top-k.
+
+Separately: with the mock trigram-hash embedder a distinctive token drives both channels, so hybrid
+quality cannot be measured locally. That is a limit of the fixture, not of the code.
 
 ---
 
@@ -160,12 +176,23 @@ that each response comes from the application, cites the expected source, matche
 source bytes, contains required phrases and excludes forbidden ones, and reports explicit fallback
 mode.
 
-**Scope of the gate.** Its predicates are binary fixture checks, not semantic scoring. In mock
-mode the generated answer is a truncation of the retrieved contexts, so an exact-token containment
-check cannot distinguish a correct answer from a fluent but semantically inverted one built from
-the same vocabulary. The gate establishes provenance binding, image identity and fail-closed
-promotion. It does not establish answer quality. Semantic evaluation is tracked as a separate,
-deferred item.
+**Scope of the gate, measured 16 November 2026.** The predicates are binary fixture checks, not
+semantic scoring. Four constructed answers were driven through the real gate
+(`scripts/experiments/parity.py gate`):
+
+- A correct echo passes.
+- A semantic inversion is blocked — but because the negating word is absent from the corpus, so
+  token containment fails on vocabulary rather than on meaning. `answer_relevancy` still scored
+  1.0 on two of the three inverted cases.
+- An answer drawn from the **wrong document**, with valid source IDs, scored
+  `faithfulness = 1.0`. It was stopped only by the per-case required-phrase check.
+- A wrong source ID is blocked.
+
+So `faithfulness` is a vocabulary-membership test that cannot distinguish supporting content from
+substituted content, and the gate's real discrimination comes from a hand-curated required-phrase
+list — a fixture property, not an evaluation method. The gate establishes provenance binding, image
+identity and fail-closed promotion. It does not establish answer quality. Semantic evaluation
+remains a separate, deferred item.
 
 ---
 

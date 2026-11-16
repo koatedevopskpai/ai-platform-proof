@@ -135,6 +135,10 @@ Cost Explorer lags 24 hours.
 
 ## Provenance
 
-Harness and raw JSON receipts are held outside this repository:
-`portfolio-exemplar-plan/ai-platform-proof/harness/` — `parity_h1.py`, `out/h1-local-pinned.json`,
-`out/h1-rds-16.14.json`.
+The harness that produced this receipt is in this repository:
+`scripts/experiments/parity_h1.py`. Run instructions and the claims each experiment supports are
+in `scripts/experiments/README.md`.
+
+Generated outputs are written to `artifacts/experiments/` and are git-ignored. The numbers in this
+receipt are recorded here rather than committed as JSON, because a JSON dump of one run is weaker
+evidence than a method a reader can re-run.
