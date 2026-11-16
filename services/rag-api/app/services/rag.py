@@ -24,10 +24,19 @@ class RAGService:
         re.compile(r"\b\d{16}\b"),  # card numbers
     ]
 
+    def __init__(self) -> None:
+        # Generation may use a different OpenAI-compatible provider from embeddings, so it gets
+        # its own credentials with a fallback to the shared ones. This is what makes a two-provider
+        # receipt possible: embed with one vendor, generate with another.
+        self.api_key = settings.llm_api_key or settings.openai_api_key
+        self.base_url = settings.llm_base_url or settings.openai_base_url
+        self.model = settings.llm_model
+
     def answer(self, query: str, contexts: Sequence[dict]) -> dict:
         guardrail = self._check_guardrails(query)
         if guardrail:
-            return {"answer": guardrail, "sources": [], "fallback": False, "blocked": True}
+            return {"answer": guardrail, "sources": [], "fallback": False, "blocked": True,
+                    "generation_mode": None, "fallback_reason": None, "usage": None, "model": None}
 
         redacted = self._redact_pii(query)
 
@@ -40,8 +49,10 @@ class RAGService:
         )
 
         with span('model.generate', 'rag-model') as observation:
-            answer, used_llm, reason = self._generate(prompt, contexts)
-            observation.update(generation_mode='provider' if used_llm else 'deterministic_fallback', fallback_reason=reason)
+            answer, used_llm, reason, usage = self._generate(prompt, contexts)
+            observation.update(generation_mode='provider' if used_llm else 'deterministic_fallback', fallback_reason=reason,
+                               model=self.model if used_llm else None,
+                               total_tokens=(usage or {}).get('total_tokens'))
             if reason and reason.startswith('provider_'):
                 observation.update(status='error', error_type=reason)
 
@@ -52,35 +63,38 @@ class RAGService:
             "blocked": False,
             "generation_mode": "provider" if used_llm else "deterministic_fallback",
             "fallback_reason": reason,
+            "usage": usage,
+            "model": self.model if used_llm else None,
         }
 
-    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool, str | None]:
-        if settings.openai_api_key and contexts:
+    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool, str | None, dict | None]:
+        if self.api_key and contexts:
             try:
                 resp = httpx.post(
-                    f"{settings.openai_base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
                     json={
-                        "model": settings.llm_model,
+                        "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
                         "temperature": 0.0,
                     },
                     timeout=30.0,
                 )
                 resp.raise_for_status()
-                answer = resp.json()["choices"][0]["message"]["content"]
+                body = resp.json()
+                answer = body["choices"][0]["message"]["content"]
                 if not isinstance(answer, str) or not answer.strip():
                     raise ValueError("empty provider answer")
-                return answer.strip(), True, None
+                return answer.strip(), True, None, body.get("usage")
             except httpx.HTTPStatusError as exc:
                 reason = f"provider_http_{exc.response.status_code}"
             except httpx.HTTPError:
                 reason = "provider_transport_error"
             except (KeyError, ValueError, TypeError, IndexError):
                 reason = "provider_invalid_response"
-            return self._deterministic_fallback(prompt, contexts), False, reason
+            return self._deterministic_fallback(prompt, contexts), False, reason, None
         reason = "no_context" if not contexts else "mock_generation"
-        return self._deterministic_fallback(prompt, contexts), False, reason
+        return self._deterministic_fallback(prompt, contexts), False, reason, None
 
     @staticmethod
     def _deterministic_fallback(prompt: str, contexts: Sequence[dict]) -> str:
