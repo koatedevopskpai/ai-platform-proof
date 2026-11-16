@@ -259,7 +259,19 @@ def main() -> int:
                         help="also run steps that need a database")
     parser.add_argument("--strict", action="store_true",
                         help="treat skipped steps as failures")
+    parser.add_argument("--list", action="store_true",
+                        help="print the step table and exit without running anything")
     args = parser.parse_args()
+
+    if args.list:
+        # Deliberately does not execute anything: tests and users can inspect the surface
+        # without spawning subprocesses. A test that ran a step would re-enter this suite.
+        print(f"{'step':<12} {'docker image':<38} {'db':<3} description")
+        print("-" * 96)
+        for step in STEPS:
+            print(f"{step.name:<12} {step.docker_image or '-':<38} "
+                  f"{'yes' if step.needs_db else '':<3} {step.description}")
+        return 0
 
     only = {s.strip() for s in args.only.split(",") if s.strip()}
     skip = {s.strip() for s in args.skip.split(",") if s.strip()}

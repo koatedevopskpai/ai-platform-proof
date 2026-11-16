@@ -88,11 +88,16 @@ python scripts/verify.py            # all suites in Docker; authoritative
 python scripts/verify.py --local    # host toolchains, skipping what is unavailable
 python scripts/verify.py --with-db  # adds the retrieval acceptance test
 python scripts/verify.py --only rag-api,ddl
+python scripts/verify.py --list     # print the step table and exit
 ```
 
 It mirrors `.github/workflows/ci.yml` and adds two checks CI does not run: schema-generation
 determinism and retrieval acceptance. A step is skipped only when its probe genuinely fails, and the
 summary names what was skipped and why — a skip is never reported as a pass.
+
+The tool has its own tests in `tests/test_verify.py`. They exist because it reported the wrong thing
+four times while being built; each incident is now a named case. See §13 of the architecture
+document for why that layer matters more than it looks.
 
 | Step | Checks |
 |---|---|

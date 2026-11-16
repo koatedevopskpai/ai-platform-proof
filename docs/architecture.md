@@ -268,12 +268,22 @@ One entry point runs every offline suite:
 python scripts/verify.py            # all suites in Docker; authoritative
 python scripts/verify.py --local    # host toolchains, skipping what is unavailable
 python scripts/verify.py --with-db  # adds the retrieval acceptance test
+python scripts/verify.py --list     # print the step table and exit
 ```
 
 It mirrors `.github/workflows/ci.yml` and adds schema-generation determinism and retrieval
 acceptance, neither of which CI runs. A step is skipped only when its probe genuinely fails — the
 capability is tested, not the presence of a binary name — and skips are reported rather than counted
 as passes.
+
+**The tool has its own tests** (`tests/test_verify.py`, 18 cases). While it was being built it
+reported the wrong thing four times: a missing tool that was installed, a test failure that was
+actually an environment limitation, checks skipped inside an environment that could run them, and a
+hang caused by a test invoking the suite that contained it. Each incident is now a named test.
+
+That matters more here than elsewhere. A verification tool that silently skips work produces a false
+green, and a false green is never investigated — the failure surfaces later, somewhere less
+convenient. Incidents and mitigations are recorded in the briefing document's Part VI-B.
 
 The session drills (`tests/integration_o02.py`, `o03`, `o04`) are separate: they build and start
 real containers and deliberately introduce failures. Run them sequentially.
