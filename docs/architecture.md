@@ -97,9 +97,16 @@ Indexes:
   `ef_construction = 64`
 - `ix_documents_content_tsv` — GIN on `to_tsvector('english', content)`
 
-Embedding width is 384 in mock mode. Mock embeddings are deterministic hashed character
+Embedding width is **384 in both modes**. Mock embeddings are deterministic hashed character
 trigrams, and the Python and .NET implementations must produce byte-identical vectors so both
 services can share one store.
+
+In provider mode the service requests `dimensions: 384` from the OpenAI-compatible endpoint —
+`text-embedding-3-*` supports the parameter. That keeps `vector(384)`, the HNSW index and the RDS
+parity receipt valid without a migration. The response width is checked before use, so a provider
+returning a different width fails at the provider boundary rather than later as an opaque PostgreSQL
+type error at insert. Batch items are ordered by `index` rather than response order, so input text and
+stored vector cannot drift apart.
 
 ---
 
