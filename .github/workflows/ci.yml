@@ -26,7 +26,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: "8.0.x"
-      - run: dotnet restore src/IngestApi/IngestApi.csproj
+      - run: dotnet restore src/IngestApi/IngestApi.csproj --locked-mode
       - run: dotnet build src/IngestApi/IngestApi.csproj --no-restore -c Release
       - run: dotnet test tests/IngestApi.Tests/IngestApi.Tests.csproj --no-restore -c Release
 

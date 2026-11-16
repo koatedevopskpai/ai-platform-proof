@@ -17,7 +17,8 @@ SERVICES = ('gateway', 'rag-api', 'dotnet-ingest')
 GATE_FILES = ('candidate_gate.py', 'gate_policy.py', 'gate-policy.json', 'acceptance.json')
 # Pinned to match Amazon RDS PostgreSQL 16.14 / pgvector 0.8.2 exactly.
 # See evidence/parity-h1.md before changing.
-POSTGRES_IMAGE = 'pgvector/pgvector:0.8.2-pg16'
+POSTGRES_IMAGE = ('pgvector/pgvector:0.8.2-pg16'
+                  '@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc')
 
 
 def run(*args, cwd=None):

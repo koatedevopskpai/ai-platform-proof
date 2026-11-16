@@ -234,6 +234,45 @@ an alert was delivered.
 
 FinOps tagging is applied at RDS scope. Budget alerts are notifications, not spend caps.
 
+### 10.1 Dependency pinning
+
+Every base image is pinned by tag and manifest-list digest, so a tag moving upstream cannot change a
+build:
+
+| Image | Used by |
+|---|---|
+| `python:3.12-slim@sha256:5e2bdb1b…` | `rag-api`, `evaluator`, and the `verify` steps |
+| `node:22-alpine@sha256:1314fb30…` | `gateway`, and the `verify` node step |
+| `mcr.microsoft.com/dotnet/sdk:8.0@sha256:1b955f17…` | `dotnet-ingest` build stage |
+| `mcr.microsoft.com/dotnet/aspnet:8.0@sha256:dccacae9…` | `dotnet-ingest` runtime stage |
+| `pgvector/pgvector:0.8.2-pg16@sha256:00ba258a…` | Compose, `release.py`, `verify` |
+
+Language dependencies:
+
+| Ecosystem | Pinning | Enforced by |
+|---|---|---|
+| Python | exact `==` versions in `requirements*.txt` | image build and `verify` install those files |
+| .NET | `packages.lock.json` for both projects | `RestorePackagesWithLockFile` in `Directory.Build.props`; `--locked-mode` in CI and `verify` |
+| Node | `package-lock.json` | `npm ci` in CI and `verify` |
+
+**Regenerate the .NET lock files after changing a package reference:**
+
+```sh
+docker run --rm -v "$PWD:/src" -w /src/services/dotnet-ingest \
+  mcr.microsoft.com/dotnet/sdk:8.0@sha256:1b955f179b02df4f0eb5fadedaa898cbe44d620a64aab52eec72c8e91d1355b5 \
+  sh -c "dotnet restore src/IngestApi/IngestApi.csproj --use-lock-file && \
+         dotnet restore tests/IngestApi.Tests/IngestApi.Tests.csproj --use-lock-file"
+```
+
+Without that step, `--locked-mode` fails with `NU1004` naming the package whose version the lock file
+does not contain. That failure is deliberate: it is the difference between a dependency change and a
+dependency drift.
+
+**What pinning does not establish.** Python pins are version constraints without hashes, so artefact
+integrity is not verified. NuGet packages are pinned by version, not signature. Base digests prevent
+tag movement; they do not prove provenance. The build is reproducible in *inputs*, not bit-identical
+in *outputs*.
+
 ---
 
 ## 11. Unsupported design history

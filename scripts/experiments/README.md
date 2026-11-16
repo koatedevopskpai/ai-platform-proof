@@ -17,7 +17,7 @@ A PostgreSQL with the `pgvector` extension. The reference image is pinned in `do
 docker network create experiments
 docker run -d --name experiments-pg --network experiments \
   -e POSTGRES_USER=ai -e POSTGRES_PASSWORD=ai -e POSTGRES_DB=aiplatform \
-  pgvector/pgvector:0.8.2-pg16
+  pgvector/pgvector:0.8.2-pg16@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc
 ```
 
 Run the scripts inside the `rag-api` image, which already carries the dependencies:
