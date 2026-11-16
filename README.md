@@ -137,3 +137,8 @@ No uptime, production readiness, semantic answer quality, broad evaluation quali
 delivery or live EKS deployment is claimed anywhere in this repository. Each of those is either
 untested or explicitly excluded. Where a claim is bounded, the bound is stated next to the claim
 rather than in a footnote.
+
+Live generation is exercised against two providers with recorded token counts and cost —
+[evidence/live-provider.md](evidence/live-provider.md). That is a demonstration that the path works
+and is measurable, not a quality evaluation, and the promotion gate still does not run against live
+answers.

@@ -35,6 +35,9 @@ infra/helm/**/charts/*.tgz
 # Docker / local
 docker-compose.override.yml
 .env
+# Secret stores: never commit a credentials directory
+.secrets/
+*.secrets
 
 # Local developer docs (never commit these)
 ai-platform-code-along.txt

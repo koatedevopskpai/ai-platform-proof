@@ -163,6 +163,13 @@ deterministic fallback.
   deterministic source-based answer and a bounded reason code
   (`provider_http_<code>`, `provider_transport_error`, `provider_invalid_response`, `no_context`,
   `mock_generation`). Raw provider error bodies are never returned.
+- **Generation may use a different provider from embeddings.** `LLM_BASE_URL`, `LLM_API_KEY` and
+  `LLM_MODEL` fall back to the `OPENAI_*` settings when unset, so single-provider deployments need no
+  extra configuration. With them set, embeddings can stay on one vendor while generation runs on
+  another — verified in [live provider evidence](../evidence/live-provider.md) with OpenAI and
+  DeepSeek.
+- Each provider response's `usage` object and model identity are returned with the answer and recorded
+  in the `model.generate` span, so token counts and cost are measurable per run.
 
 In mock mode the deterministic answer is a truncation of the retrieved contexts. This matters for
 evaluation: see §8.
@@ -211,6 +218,13 @@ substituted content, and the gate's real discrimination comes from a hand-curate
 list — a fixture property, not an evaluation method. The gate establishes provenance binding, image
 identity and fail-closed promotion. It does not establish answer quality. Semantic evaluation
 remains a separate, deferred item.
+
+**Live answers are not yet gated.** Generation has been exercised against two providers
+([live provider evidence](../evidence/live-provider.md)), but the promotion gate has only ever run
+against deterministic mock output. A live answer fails the current `faithfulness` predicate because a
+model answer is not a substring of its contexts. Until the live-mode predicate set exists, the live
+path has no promotion control — the gate protects the mock path only. Recorded as workstream C5 in the
+briefing document.
 
 ---
 
@@ -321,6 +335,10 @@ It mirrors `.github/workflows/ci.yml` and adds schema-generation determinism and
 acceptance, neither of which CI runs. A step is skipped only when its probe genuinely fails — the
 capability is tested, not the presence of a binary name — and skips are reported rather than counted
 as passes.
+
+**Not run by `verify`:** the live-provider receipt (`scripts/experiments/live_receipt.py`). It needs an
+API key and spends money, so it is a deliberate manual step whose output is recorded in
+[evidence/live-provider.md](../evidence/live-provider.md).
 
 **The tool has its own tests** (`tests/test_verify.py`, 18 cases). While it was being built it
 reported the wrong thing four times: a missing tool that was installed, a test failure that was
