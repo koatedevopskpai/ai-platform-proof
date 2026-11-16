@@ -7,6 +7,20 @@ Public reference implementation: TypeScript gateway, Python RAG API and .NET ing
 backed by PostgreSQL/pgvector. Synthetic mock embeddings are the default. This repository does not
 establish commercial production operation.
 
+## How to read this repository
+
+| If you want to… | Start here |
+|---|---|
+| Judge the engineering | [EVIDENCE.md](EVIDENCE.md) — dated results, then its "what this does not establish" section |
+| Inspect the design | [docs/architecture.md](docs/architecture.md) — as built, including what is unsupported |
+| Reproduce the checks | `python scripts/verify.py` — seven suites, about four minutes |
+| See where the work went wrong | [docs/architecture.md](docs/architecture.md) §5 retrieval, §8 gate scope, §13 the verification tool |
+| Deploy it | The supported release path below |
+
+The claim is not that this is production software. It is that every statement here resolves to a
+dated receipt or is explicitly marked unproven. Where measurement later contradicted the
+documentation, the contradiction and the repair are recorded rather than tidied away.
+
 ## Supported release path
 
 EC2 + Docker Compose with immutable image IDs and a checksummed image archive. The release receipt
