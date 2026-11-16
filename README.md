@@ -21,15 +21,20 @@ python scripts/release/release.py build --out /tmp/release
 python scripts/release/release.py deploy --bundle /tmp/release --expected-source <40-char-commit> --receipt /tmp/receipt.json
 ```
 
-The reference PostgreSQL image is pinned to `pgvector/pgvector:0.8.2-pg16` — PostgreSQL 16.14 with
-pgvector 0.8.2 — to match the RDS target. Parity is verified rather than assumed: identical engine
-and extension versions, schema fingerprint, index definitions, result sets, plan shapes and scores
-against Amazon RDS in `eu-west-2`. See [evidence/parity-h1.md](evidence/parity-h1.md).
+The reference PostgreSQL image is pinned to `pgvector/pgvector:0.8.2-pg16@sha256:00ba258a…` —
+PostgreSQL 16.14 with pgvector 0.8.2 — by tag and digest, to match the RDS target. Parity is
+verified rather than assumed: identical engine and extension versions, schema fingerprint, index
+definitions, result sets, plan shapes and scores against Amazon RDS in `eu-west-2`. See
+[evidence/parity-h1.md](evidence/parity-h1.md).
 
 The operator must trust the build runner, manifest and transport. Checksums do not authenticate an
-untrusted publisher. Base images are pinned by tag rather than digest, and most Python/.NET
-dependencies remain mutable at build time, so image IDs identify one actual build rather than a
-promise of bit-identical rebuilds. Each task receipt describes one run, not current uptime.
+untrusted publisher. Every base image is pinned by digest and Python dependencies are pinned to exact
+versions; NuGet resolves against committed lock files that CI and `verify` restore in locked mode.
+
+What pinning does **not** give you: Python pins carry no hashes, so artefact integrity is not
+verified; NuGet packages are pinned by version rather than signature; and the build is not
+bit-identical. Image IDs identify one actual build. Each task receipt describes one run, not current
+uptime.
 
 EKS/Helm remains unsupported design material, retained as a labelled section in
 [the architecture document](docs/architecture.md). `deploy.yml` exists only to fail loudly if the

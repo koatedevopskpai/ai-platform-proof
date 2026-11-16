@@ -35,7 +35,13 @@ DOCKER_REPO = str(REPO).replace("\\", "/")
 
 NETWORK = "verify-net"
 DB_CONTAINER = "verify-pg"
-PG_IMAGE = "pgvector/pgvector:0.8.2-pg16"
+PG_IMAGE = ("pgvector/pgvector:0.8.2-pg16"
+            "@sha256:00ba258a66dac104fd5171074a0084462a64a1369d8513f3d0a634e2f24d15bc")
+
+# Pinned by digest: verify must not change behaviour because a base tag moved overnight.
+PY_IMAGE = "python:3.12-slim@sha256:5e2bdb1b0d542d5039cffb8181c65930093949194a65c365dfb1b0fe13a4fa5b"
+NODE_IMAGE = "node:22-alpine@sha256:1314fb30ec37592d5845e5a160d522c0e680972aa534549940b8d73bde88481a"
+DOTNET_IMAGE = "mcr.microsoft.com/dotnet/sdk:8.0@sha256:1b955f179b02df4f0eb5fadedaa898cbe44d620a64aab52eec72c8e91d1355b5"
 
 PY = sys.executable
 RAG_DEPS = "import sqlalchemy, pgvector, psycopg, pydantic_settings"
@@ -58,7 +64,7 @@ STEPS = [
         name="contracts",
         description="release, gate and indicator contracts",
         cwd=".",
-        docker_image="python:3.12-slim",
+        docker_image=PY_IMAGE,
         docker_cmd=["python", "-m", "unittest", "discover", "-s", "tests", "-v"],
         local_cmds=[[PY, "-m", "unittest", "discover", "-s", "tests", "-v"]],
     ),
@@ -67,7 +73,7 @@ STEPS = [
         description="RAG API unit tests",
         cwd="services/rag-api",
         probe=[PY, "-c", "import pytest, sqlalchemy, pgvector, psycopg, pydantic_settings"],
-        docker_image="python:3.12-slim",
+        docker_image=PY_IMAGE,
         docker_cmd=["sh", "-c",
                     "pip install -q -r requirements-dev.txt && python -m pytest tests -q"],
         local_cmds=[[PY, "-m", "pytest", "tests", "-q"]],
@@ -77,7 +83,7 @@ STEPS = [
         description="evaluator unit tests",
         cwd="services/evaluator",
         probe=[PY, "-m", "pytest", "--version"],
-        docker_image="python:3.12-slim",
+        docker_image=PY_IMAGE,
         docker_cmd=["sh", "-c",
                     "pip install -q -r requirements-dev.txt && python -m pytest tests -q"],
         local_cmds=[[PY, "-m", "pytest", "tests", "-q"]],
@@ -87,14 +93,14 @@ STEPS = [
         description=".NET build and tests",
         cwd="services/dotnet-ingest",
         probe=["dotnet", "--version"],
-        docker_image="mcr.microsoft.com/dotnet/sdk:8.0",
+        docker_image=DOTNET_IMAGE,
         docker_cmd=["sh", "-c",
-                    "dotnet restore src/IngestApi/IngestApi.csproj && "
+                    "dotnet restore src/IngestApi/IngestApi.csproj --locked-mode && "
                     "dotnet build src/IngestApi/IngestApi.csproj --no-restore -c Release && "
                     "dotnet test tests/IngestApi.Tests/IngestApi.Tests.csproj "
                     "--no-restore -c Release"],
         local_cmds=[
-            ["dotnet", "restore", "src/IngestApi/IngestApi.csproj"],
+            ["dotnet", "restore", "src/IngestApi/IngestApi.csproj", "--locked-mode"],
             ["dotnet", "build", "src/IngestApi/IngestApi.csproj", "--no-restore", "-c", "Release"],
             ["dotnet", "test", "tests/IngestApi.Tests/IngestApi.Tests.csproj",
              "--no-restore", "-c", "Release"],
@@ -105,7 +111,7 @@ STEPS = [
         description="TypeScript typecheck, build and tests",
         cwd="services/gateway",
         probe=["npm", "--version"],
-        docker_image="node:22-alpine",
+        docker_image=NODE_IMAGE,
         docker_cmd=["sh", "-c", "npm ci && npm run typecheck && npm run build && npm test"],
         local_cmds=[
             ["npm", "ci"],
@@ -119,7 +125,7 @@ STEPS = [
         description="schema generation is deterministic",
         cwd=".",
         probe=[PY, "-c", RAG_DEPS],
-        docker_image="python:3.12-slim",
+        docker_image=PY_IMAGE,
         docker_cmd=["sh", "-c",
                     "pip install -q -r services/rag-api/requirements.txt && "
                     "a=$(python scripts/experiments/parity.py ddl | grep -o 'sha256[^,]*') && "
@@ -138,7 +144,7 @@ STEPS = [
         description="retrieval acceptance (needs a database)",
         cwd=".",
         probe=[PY, "-c", RAG_DEPS],
-        docker_image="python:3.12-slim",
+        docker_image=PY_IMAGE,
         docker_cmd=["sh", "-c",
                     "pip install -q -r services/rag-api/requirements.txt && "
                     "RAG_MIN_SCORE=0 DATABASE_URL=$VERIFY_DATABASE_URL "
