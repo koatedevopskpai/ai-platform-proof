@@ -105,30 +105,41 @@ services can share one store.
 
 ## 5. Retrieval
 
-Documented behaviour: hybrid retrieval combining dense cosine similarity with PostgreSQL
-full-text ranking, fused as `0.7 × dense + 0.3 × keyword`, filtered by a minimum score.
+Hybrid retrieval combining dense cosine similarity with PostgreSQL full-text ranking, fused by
+**reciprocal rank fusion**:
 
-**Known limitations, measured 16 November 2026** (`scripts/experiments/README.md`):
+```
+score = 1 / (60 + rank_dense) + 1 / (60 + rank_keyword)
+```
 
-1. The keyword branch selects `k` rows with no `tsquery` match predicate and no ordering, so it
-   returns arbitrary documents. In a 201-document run all four returned rows had `ts_rank = 0.0`,
-   and `EXPLAIN` shows a sequential scan truncated at `LIMIT 4`.
-2. The `0.7 × dense + 0.3 × keyword` fusion blends incommensurable scales. A maximal `ts_rank` of
-   ~0.061 contributes ~0.018 against dense contributions of ~0.114, so a document found only
-   lexically cannot reach top-k even after the first defect is fixed.
-3. `plainto_tsquery` ANDs every lexeme, so a natural-language question becomes
-   `'term1' & 'term2' & 'term3'` and matches nothing. The straightforward fix for the first defect
-   therefore removes keyword retrieval entirely.
+Rank fusion is used rather than a weighted sum because the two channels are not on a common scale.
+A weighted `0.7 × dense + 0.3 × keyword` blend was measured on 16 November 2026 and could not
+express a lexical win at all: a maximal `ts_rank` of ~0.061 contributed ~0.018 against dense
+contributions of ~0.114. Results are ordered by score with `id` as a deterministic tiebreak.
 
-The GIN index exists and is reachable as soon as a match predicate is added
-(`Bitmap Index Scan on ix_documents_content_tsv`); its presence records the intended clause that
-was never written.
+**Keyword channel.** `websearch_to_tsquery` over an OR-joined token set. `websearch_to_tsquery`
+ANDs bare terms, so a question passed directly becomes `'zygomorphpolici' & 'provis' & 'cover'`
+and requires every term in one document — measured, it matched nothing. OR-joining makes the
+channel recall-first, and `ts_rank` orders documents by how much of the query they cover. Stopwords
+are removed by the `english` configuration. The GIN index on `to_tsvector('english', content)` is
+used by the match predicate; before the predicate existed it was unreachable.
 
-The intended repair is reciprocal rank fusion over `websearch_to_tsquery`, with an acceptance test
-requiring a lexically-only document to reach the fused top-k.
+**Score floor.** `rag_min_score` applies to dense cosine similarity only. A document found purely
+by keyword has no dense similarity and is not floored — that is the purpose of a second channel.
 
-Separately: with the mock trigram-hash embedder a distinctive token drives both channels, so hybrid
-quality cannot be measured locally. That is a limit of the fixture, not of the code.
+**Two earlier defects, both fixed.** The keyword branch previously selected `k` rows with no match
+predicate and no ordering, returning arbitrary documents (four rows, all `ts_rank = 0.0`, sequential
+scan truncated at `LIMIT 4`). The fusion arithmetic is the second, described above.
+
+**Acceptance test.** `scripts/experiments/rrf_acceptance.py` seeds a corpus whose embeddings are
+decoupled from its text, sends the same query vector twice — with and without `query_text` — and
+requires the target document to appear in the hybrid result and nowhere in the dense-only result.
+It calls the real `RetrievalService`, so it fails if the shipped path regresses.
+
+**Limit that remains.** With the mock trigram-hash embedder, lexical and dense signals are
+correlated — a distinctive token drives both channels — so channel separation cannot be
+demonstrated against the shipped embedder. The acceptance test therefore uses random embeddings to
+exercise the fusion logic, not semantic retrieval quality.
 
 ---
 

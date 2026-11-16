@@ -59,17 +59,17 @@ monitoring backend.
 
 ## Known limitations, measured
 
-Retrieval has three defects, all reproduced in `scripts/experiments/`: the keyword branch returns
-`k` unranked rows, the fusion weights compare incommensurable scales so a lexical-only document
-cannot reach top-k, and `plainto_tsquery` ANDs lexemes so a natural-language question matches
-nothing. The existing GIN index is the receipt of the match predicate that was never written.
+Retrieval was rebuilt after measurement exposed three defects: an unranked keyword branch returning
+arbitrary rows, a weighted fusion that could not express a lexical win, and `plainto_tsquery` AND
+semantics that matched nothing for natural-language input. It now uses reciprocal rank fusion over
+an OR-joined `websearch_to_tsquery`, and `scripts/experiments/rrf_acceptance.py` requires a
+dense-unreachable document to surface through the keyword channel.
 
 The acceptance gate establishes provenance binding, image identity and fail-closed promotion. It
 does not establish answer quality: a wrong-document answer scored `faithfulness = 1.0` and was
 stopped only by a hand-curated required-phrase list.
 
-Neither limitation is a surprise or a regression — both are stated in
-[the architecture document](docs/architecture.md) with numbers and reproduction steps.
+Both are stated with numbers in [the architecture document](docs/architecture.md).
 
 ## Experiments
 
