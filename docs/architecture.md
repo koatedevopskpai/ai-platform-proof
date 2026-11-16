@@ -262,12 +262,20 @@ EKS statement in this repository as validated.
 
 ## 13. Verification
 
-See `EVIDENCE.md` for the full index. The offline checks are:
+One entry point runs every offline suite:
 
 ```sh
-python -m unittest discover -s tests -v
-python -m pytest services/rag-api/tests -q
+python scripts/verify.py            # all suites in Docker; authoritative
+python scripts/verify.py --local    # host toolchains, skipping what is unavailable
+python scripts/verify.py --with-db  # adds the retrieval acceptance test
 ```
 
-The session drills (`tests/integration_o02.py`, `o03`, `o04`) build and start real containers and
-deliberately introduce failures. Run them sequentially.
+It mirrors `.github/workflows/ci.yml` and adds schema-generation determinism and retrieval
+acceptance, neither of which CI runs. A step is skipped only when its probe genuinely fails — the
+capability is tested, not the presence of a binary name — and skips are reported rather than counted
+as passes.
+
+The session drills (`tests/integration_o02.py`, `o03`, `o04`) are separate: they build and start
+real containers and deliberately introduce failures. Run them sequentially.
+
+See `EVIDENCE.md` for the full evidence index.

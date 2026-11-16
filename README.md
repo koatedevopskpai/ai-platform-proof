@@ -81,14 +81,31 @@ See [scripts/experiments/README.md](scripts/experiments/README.md).
 
 ## Verification
 
+One entry point runs every offline suite:
+
 ```sh
-python -m unittest discover -s tests -v
-python -m pytest services/rag-api/tests -q
+python scripts/verify.py            # all suites in Docker; authoritative
+python scripts/verify.py --local    # host toolchains, skipping what is unavailable
+python scripts/verify.py --with-db  # adds the retrieval acceptance test
+python scripts/verify.py --only rag-api,ddl
 ```
 
-The offline suites check release integrity, fail-closed behaviour, gate contracts and indicator
-boundaries. Existing service CI remains separate. Generated release and test artifacts are ignored;
-dated evidence and limitations live under `docs/` and `evidence/`.
+It mirrors `.github/workflows/ci.yml` and adds two checks CI does not run: schema-generation
+determinism and retrieval acceptance. A step is skipped only when its probe genuinely fails, and the
+summary names what was skipped and why — a skip is never reported as a pass.
+
+| Step | Checks |
+|---|---|
+| `contracts` | release integrity, fail-closed behaviour, gate contracts, indicator boundaries |
+| `rag-api` | RAG service unit tests |
+| `evaluator` | evaluator unit tests |
+| `dotnet` | .NET build and tests |
+| `node` | TypeScript typecheck, build and tests |
+| `ddl` | schema generation produces a stable hash across runs |
+| `retrieval` | a dense-unreachable document surfaces through the keyword channel |
+
+Generated release and test artifacts are ignored; dated evidence and limitations live under
+`docs/` and `evidence/`.
 
 ## Limits
 
