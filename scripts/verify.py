@@ -22,6 +22,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
 import sys
@@ -157,11 +158,34 @@ def docker_available() -> bool:
         return False
 
 
+def local_command(cmd: list[str]) -> list[str]:
+    """Resolve a command so it can actually be executed on this host.
+
+    On Windows several toolchains ship as `.cmd` shims — `npm` is the common case. `shutil.which`
+    honours PATHEXT and finds `npm.CMD`, but `CreateProcess` cannot execute a batch file directly,
+    so a list-form `subprocess.run(["npm", ...])` raises FileNotFoundError even though the tool is
+    installed and works in a shell. Anything resolving to `.cmd`/`.bat` is therefore run through
+    `cmd /c`.
+
+    Without this the probe reported "npm not found" on a machine where `npm --version` succeeds.
+    A verification tool that skips work because it looked the wrong way is worse than no tool.
+    """
+    if not cmd:
+        return cmd
+    resolved = shutil.which(cmd[0])
+    if not resolved:
+        return cmd
+    if os.name == "nt" and resolved.lower().endswith((".cmd", ".bat")):
+        return ["cmd", "/c", resolved, *cmd[1:]]
+    return [resolved, *cmd[1:]]
+
+
 def probe_ok(probe: list[str] | None) -> tuple[bool, str]:
     if not probe:
         return True, ""
+    cmd = local_command(probe)
     try:
-        result = subprocess.run(probe, capture_output=True, text=True)
+        result = subprocess.run(cmd, capture_output=True, text=True)
     except (FileNotFoundError, OSError):
         return False, f"{probe[0]} not found"
     if result.returncode != 0:
@@ -210,7 +234,8 @@ def show_tail(text: str) -> None:
 
 
 def run_step(step: Step, use_docker: bool, db_up: bool) -> tuple[str, str]:
-    commands = [docker_command(step)] if use_docker else step.local_cmds
+    commands = ([docker_command(step)] if use_docker
+                else [local_command(c) for c in step.local_cmds])
     started = time.time()
     for cmd in commands:
         try:
