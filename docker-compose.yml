@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    # Pinned to match Amazon RDS PostgreSQL 16.14 / pgvector 0.8.2 exactly.
+    # See evidence/parity-h1.md before changing.
+    image: pgvector/pgvector:0.8.2-pg16
     environment:
       POSTGRES_USER: ai
       POSTGRES_PASSWORD: ai

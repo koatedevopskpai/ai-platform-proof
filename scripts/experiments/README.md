@@ -1,0 +1,88 @@
+# Experiments
+
+Reproducible measurements behind the limitations stated in `docs/architecture.md` and the parity
+receipt in `evidence/parity-h1.md`.
+
+These are not part of the release path and are not run by CI. They exist so a reader can re-derive
+the numbers rather than take them on trust.
+
+Outputs are written to `artifacts/experiments/` and are git-ignored. Nothing here calls an external
+model; the mock embedder is used throughout.
+
+## Prerequisites
+
+A PostgreSQL with the `pgvector` extension. The reference image is pinned in `docker-compose.yml`:
+
+```sh
+docker network create experiments
+docker run -d --name experiments-pg --network experiments \
+  -e POSTGRES_USER=ai -e POSTGRES_PASSWORD=ai -e POSTGRES_DB=aiplatform \
+  pgvector/pgvector:0.8.2-pg16
+```
+
+Run the scripts inside the `rag-api` image, which already carries the dependencies:
+
+```sh
+docker build -t ai-platform-experiments ./services/rag-api
+
+docker run --rm --network experiments \
+  -v "$PWD:/src" -w /src \
+  -e DATABASE_URL="postgresql+psycopg://ai:ai@experiments-pg:5432/aiplatform" \
+  ai-platform-experiments python scripts/experiments/<script>.py
+```
+
+## Scripts
+
+### `parity.py`
+
+| Subcommand | Produces | Supports |
+|---|---|---|
+| `ddl` | `artifacts/experiments/schema.sql` — DDL generated from `Base.metadata` | The schema is the ORM's, not hand-written |
+| `gate` | `artifacts/experiments/gate.json` — verdicts for four constructed answers | The scope of the acceptance gate (§8 of `architecture.md`) |
+| `hybrid` | `artifacts/experiments/hybrid.json` — keyword contribution with the real mock embedder | Why hybrid quality is unfalsifiable in mock mode |
+
+### `hybrid2.py`
+
+Decouples embeddings from text using random unit vectors with a fixed seed, so a document can be
+lexically matchable but dense-unreachable. This is the only way to measure whether the keyword
+branch contributes anything.
+
+Produces `artifacts/experiments/hybrid2.json` and the `EXPLAIN` pair. Supports the three retrieval
+limitations in §5 of `architecture.md`:
+
+1. The keyword branch returns `k` arbitrary rows — all `ts_rank = 0.0`
+2. A maximal lexical hit contributes ~0.018 against dense ~0.114, so it cannot reach top-k even
+   after the branch is fixed
+3. `plainto_tsquery` ANDs lexemes, so a natural-language question matches nothing
+
+### `parity_h1.py`
+
+Runs identical DDL, corpus and queries against one target and emits a fingerprint: server version,
+extension version, schema signature, index definitions, result IDs, scores and plan shapes.
+
+Run it twice — once against the local container, once against RDS — and compare
+`artifacts/experiments/h1-<label>.json`. This is the method behind `evidence/parity-h1.md`.
+
+```sh
+# local reference
+docker run --rm --network experiments -v "$PWD:/src" -w /src \
+  -e DATABASE_URL="postgresql+psycopg://ai:ai@experiments-pg:5432/aiplatform" \
+  -e TARGET_LABEL=local-pinned \
+  ai-platform-experiments python scripts/experiments/parity_h1.py
+
+# RDS target (PostgreSQL 16.14, db.t4g.micro, restricted security group)
+docker run --rm -v "$PWD:/src" -w /src \
+  -e DATABASE_URL="postgresql+psycopg://<user>:<password>@<endpoint>:5432/postgres?sslmode=require" \
+  -e TARGET_LABEL=rds-16.14 \
+  ai-platform-experiments python scripts/experiments/parity_h1.py
+```
+
+## Limitations
+
+- Random embeddings test the retrieval SQL, not semantic retrieval quality
+- One seed, one query, `k = 4` as configured; no concurrency
+- `parity_h1.py` destroys and recreates the `documents` table — **do not point it at a database
+  holding data you want to keep**
+- The `gate` subcommand injects a fake transport; it exercises the real predicates and policy but
+  not a running application
+- Cloud targets are billable. Tag them, cap them, and delete them in the same session
