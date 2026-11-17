@@ -28,19 +28,20 @@ Workflow wall time is the slowest job: **59s**. Two facts:
 
 ## O1 — Split `python` into `rag-api` and `evaluator` — **adopted**
 
-| | Before | After |
-|---|---:|---:|
-| `Python — rag-api` | (shared) | **14s** |
-| `Python — evaluator` | (shared) | **53s** |
-| Workflow wall | 59s | **53s** |
+| | Before | After (typical) | After (observed range) |
+|---|---:|---:|---:|
+| `Python — rag-api` | (shared) | **14s** | **14–20s** |
+| `Python — evaluator` | (shared) | **53s** | **38–66s** |
+| Workflow wall | 59s | **53s** | **38–66s** |
 
 **Primary reason is attribution, not speed.** A ragas installation failure and a rag-api test failure
 previously produced the same red check called "Python build + test". After the split, the failing
 component is in the job name.
 
-The latency effect is real but modest at the worst case (59s → 53s), because the evaluator remains the
-critical path. The effect that matters is on the common case: **rag-api feedback now arrives in 14s
-instead of 59s.**
+**The latency claim has to be careful.** The rag-api job is consistently fast — 14s and 19s across runs
+— so **service-test feedback moved from 59s to roughly 15s**, which is real and repeatable. The
+evaluator job is not: identical inputs produced 38s, 53s and 66s. Wall time therefore varies with it, and
+no claim about a 6-second improvement survives that variance. See "Variance" below.
 
 **Cost:** one extra job. Free on a public repository. If this were private, the split would still be
 worth its ~15% increase in minutes for the attribution gain.
@@ -96,13 +97,28 @@ critical path. Revisit only if restore time grows.
 
 | Metric | Before | After |
 |---|---:|---:|
-| Workflow wall time | 59s | **53s** |
-| rag-api test feedback | 59s | **14s** |
+| Workflow wall time | 59s | 38–66s, driven by evaluator install variance |
+| rag-api test feedback | 59s | **14–20s** |
 | Failing component identifiable from the check name | no | **yes** |
 | Cache keys to maintain | 1 (npm) | 1 (npm) |
 
-The large number here is not the 6 seconds saved. It is that a service-test failure is now reported in
-14 seconds, and that the check name says which component broke.
+The large number here is not seconds saved. It is that a service-test failure is now reported in around
+15 seconds, and that the check name says which component broke.
+
+## Variance — why most of these numbers are not precise
+
+Identical inputs, same runner image, same commit tree, produced these `Install evaluator deps` durations:
+**28s, 43s, 66s**. That is a 38-second spread with nothing changed but the runner's mood.
+
+Consequences, which apply to any future CI optimisation here:
+
+- A difference under roughly **15 seconds** cannot be attributed from a single run.
+- Median of three runs is the least one can defensibly quote, and even then the range should be published.
+- Any optimisation whose mechanism does not explain the saving is probably variance. The pip cache is the
+  worked example: it engaged, install stayed in the same range, so it was removed.
+
+The split's benefit is **structural** — a faster job exists and the failure is named — and that does not
+depend on timing at all.
 
 ## How to measure next time
 
