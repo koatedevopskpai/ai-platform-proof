@@ -61,6 +61,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          # Cache pip downloads against the pinned requirement files. The key is derived from their
+          # content, so changing a pin invalidates it automatically — a stale cache cannot mask a
+          # dependency change. All four files are listed so both Python jobs share one cache.
+          cache: pip
+          cache-dependency-path: |
+            services/rag-api/requirements.txt
+            services/rag-api/requirements-dev.txt
+            services/evaluator/requirements.txt
+            services/evaluator/requirements-dev.txt
       - name: Install rag-api deps
         run: pip install -r services/rag-api/requirements-dev.txt
       - name: Test rag-api
@@ -74,6 +83,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            services/rag-api/requirements.txt
+            services/rag-api/requirements-dev.txt
+            services/evaluator/requirements.txt
+            services/evaluator/requirements-dev.txt
       - name: Install evaluator deps
         run: pip install -r services/evaluator/requirements-dev.txt
       - name: Test evaluator
