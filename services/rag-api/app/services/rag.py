@@ -8,6 +8,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.telemetry import span
+from app.core import tokens
 
 
 class RAGService:
@@ -85,6 +86,13 @@ class RAGService:
                 answer = body["choices"][0]["message"]["content"]
                 if not isinstance(answer, str) or not answer.strip():
                     raise ValueError("empty provider answer")
+                tokens.record(
+                    component="rag-api",
+                    operation="rag.answer",
+                    model=self.model,
+                    usage=body.get("usage"),
+                    base_url=self.base_url,
+                )
                 return answer.strip(), True, None, body.get("usage")
             except httpx.HTTPStatusError as exc:
                 reason = f"provider_http_{exc.response.status_code}"

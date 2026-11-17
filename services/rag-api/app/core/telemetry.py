@@ -14,6 +14,12 @@ def identifier(value, width):
     return value if isinstance(value, str) and re.fullmatch('[0-9a-f]{'+str(width)+'}', value) else uuid.uuid4().hex[:width]
 
 
+def current_trace_id():
+    """Trace id of the enclosing span, so token records can join to request telemetry."""
+    entry = _context.get()
+    return entry['trace_id'] if entry else None
+
+
 @contextmanager
 def span(operation, component, trace_id=None, parent_span_id=None):
     parent = _context.get()

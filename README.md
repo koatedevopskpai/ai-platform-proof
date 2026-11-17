@@ -98,6 +98,15 @@ before and after, four gate scenarios, and a two-target parity fingerprint. They
 the release path and are not run by CI. Outputs go to `artifacts/experiments/` and are git-ignored.
 See [scripts/experiments/README.md](scripts/experiments/README.md).
 
+## Token cost
+
+Model spend is attributed the way cloud spend is: every provider call records the operation, endpoint,
+model and provider that caused it, with the rate used at the time. `GET /costs?group_by=endpoint`
+returns the rollup. See [token economics evidence](evidence/token-economics.md).
+
+Measured on a live run: twelve calls cost $0.00005446, of which `/rag` accounted for 98.2%. Spend is
+measured, not yet capped.
+
 ## Verification
 
 One entry point runs every offline suite:
