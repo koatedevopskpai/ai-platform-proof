@@ -139,9 +139,11 @@ untested or explicitly excluded. Where a claim is bounded, the bound is stated n
 rather than in a footnote.
 
 Live generation is exercised against two providers with recorded token counts and cost —
-[evidence/live-provider.md](evidence/live-provider.md). That is a demonstration that the path works
-and is measurable, not a quality evaluation, and the promotion gate still does not run against live
-answers.
+[evidence/live-provider.md](evidence/live-provider.md). Live answers are gated structurally — provider
+answer, usage present, exact citations, fixture phrases — and a controlled run blocked all three cases
+when the service answered from the deterministic fallback:
+[evidence/gate-live.md](evidence/gate-live.md). The release CLI still builds mock-only bundles, because
+provider credentials must not enter a manifest.
 
 Offline evaluation uses the RAGAS library — [evidence/ragas-eval.md](evidence/ragas-eval.md). Its
 scores are reported, never used to gate, because measurement showed them disagreeing with obvious

@@ -9,11 +9,16 @@ import re
 from urllib.request import Request, urlopen
 
 from gate_policy import assess_rows, load_policy
+import live_gate
+
+# Mock mode keeps binary fixture predicates. Live mode uses a separate structural set, because a
+# model answer is not a substring of its contexts and cannot be checked by token containment.
+SUPPORTED_MODES = ('synthetic_mock', 'live_provider')
 
 
 def load_dataset(path):
     data = json.loads(Path(path).read_text(encoding='utf-8'))
-    if data.get('schema') != 1 or data.get('execution_mode') != 'synthetic_mock':
+    if data.get('schema') != 1 or data.get('execution_mode') not in SUPPORTED_MODES:
         raise ValueError('unsupported acceptance dataset mode/schema')
     docs, cases = data.get('documents'), data.get('cases')
     if not isinstance(docs, list) or not docs or not isinstance(cases, list) or not 1 <= len(cases) <= 20:
@@ -39,8 +44,39 @@ def post(base, route, payload):
         return json.load(response)
 
 
+def _evaluate_live(base, dataset, provenance, request=post, policy_path=None):
+    """Live-mode acceptance: structural predicates against actual provider responses."""
+    corpus = {doc['id']: doc['content'] for doc in dataset['documents']}
+    for doc in dataset['documents']:
+        ingestion = request(base, '/ingest', doc)
+        if ingestion.get('id') != doc['id'] or ingestion.get('dimensions') != 384:
+            raise ValueError('gateway ingestion did not confirm expected fixture/vector dimensions')
+
+    rows = []
+    for case in dataset['cases']:
+        query = {'query': case['question'], 'top_k': 3}
+        search = request(base, '/search', query)
+        answer = request(base, '/rag', query)
+        rows.append({
+            'case_id': case['id'],
+            'question': case['question'],
+            'answer': answer.get('answer'),
+            'sources': answer.get('sources'),
+            'generation_mode': answer.get('generation_mode'),
+            'model': answer.get('model'),
+            'usage': answer.get('usage'),
+            'retrieved_ids': [item.get('id') for item in search.get('results') or []],
+            'checks': live_gate.case_checks(case, corpus, search, answer),
+        })
+
+    policy = live_gate.load_policy(policy_path)
+    return live_gate.report(rows, policy, len(dataset['cases']), dataset['dataset_id'], provenance)
+
+
 def evaluate(base, dataset_path, provenance, request=post, policy_path=None):
     dataset = load_dataset(dataset_path)
+    if dataset['execution_mode'] == 'live_provider':
+        return _evaluate_live(base, dataset, provenance, request, policy_path)
     corpus = {d['id']: d['content'] for d in dataset['documents']}
     for doc in dataset['documents']:
         ingestion = request(base, '/ingest', doc)

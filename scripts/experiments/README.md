@@ -127,6 +127,21 @@ null — an invented price is worse than no price.
 
 The key is read from the environment and never printed or written into the receipt.
 
+### `live_gate_check.py` — live-mode acceptance gate
+
+Runs the real gate against a running service. `candidate_gate.evaluate()` dispatches on the dataset's
+`execution_mode`, so this exercises the same path a release would. Exits non-zero when the gate fails.
+
+```sh
+docker run --rm --network gatecheck -v "$PWD:/src" -w /src \
+  -e RAG_API_URL=http://gate-live:8000 python:3.12-slim \
+  python scripts/experiments/live_gate_check.py --label provider-mode
+```
+
+The informative comparison is the same command against a service in mock mode — same dataset, same
+code, answers from the deterministic fallback — which must fail. Results:
+`evidence/gate-live.md`.
+
 ### `ragas_eval.py` — RAGAS framework evaluation
 
 Scores live answers with the **RAGAS library** (`ragas==0.4.4`): faithfulness, answer relevancy,
