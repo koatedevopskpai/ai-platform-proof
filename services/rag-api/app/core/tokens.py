@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
+import re
 from threading import Lock
 
 from app.core.config import settings
@@ -38,6 +39,7 @@ DIMENSIONS = (    "workload",
     "provider",
     "mode",
     "rate_version",
+    "label",
 )
 
 _endpoint: ContextVar[str | None] = ContextVar("token_endpoint", default=None)
@@ -87,11 +89,24 @@ def load_rates(path: Path | None = None) -> dict:
     return table
 
 
+_SNAPSHOT_SUFFIX = re.compile(r"-\d{4}-\d{2}-\d{2}$")
+
+
+def normalise_model(model: str) -> str:
+    """Strip a dated snapshot suffix so pricing resolves to the family alias.
+
+    Providers echo back the resolved snapshot — `gpt-4o-mini-2024-07-18` — while rate tables are keyed
+    on the alias. Attribution keeps the reported name, because that is what actually ran; pricing
+    resolves it to the family, because that is what the price list covers.
+    """
+    return _SNAPSHOT_SUFFIX.sub("", model or "")
+
+
 def price(model: str, prompt_tokens: int, completion_tokens: int,
           table: dict | None = None) -> tuple[float | None, dict | None]:
     """Cost in USD, or (None, None) when the model is absent from the table."""
     table = table or load_rates()
-    row = table["models"].get(model)
+    row = table["models"].get(model) or table["models"].get(normalise_model(model))
     if row is None:
         return None, None
     cost = (prompt_tokens / 1_000_000) * row["input_per_million"] \
@@ -101,7 +116,7 @@ def price(model: str, prompt_tokens: int, completion_tokens: int,
 
 def infer_provider(model: str, base_url: str = "") -> str:
     table = load_rates()
-    row = table["models"].get(model)
+    row = table["models"].get(model) or table["models"].get(normalise_model(model))
     if row:
         return row["provider"]
     # Unknown models still need an attribution value rather than null.
@@ -110,7 +125,8 @@ def infer_provider(model: str, base_url: str = "") -> str:
 
 def record(*, component: str, operation: str, model: str, usage: dict | None,
            mode: str = "provider", endpoint: str | None = None,
-           trace_id: str | None = None, base_url: str = "") -> dict:
+           trace_id: str | None = None, base_url: str = "",
+           label: str | None = None) -> dict:
     """Emit and persist one attribution record. Returns the record for testing."""
     prompt = int((usage or {}).get("prompt_tokens") or 0)
     completion = int((usage or {}).get("completion_tokens") or 0)
@@ -138,6 +154,7 @@ def record(*, component: str, operation: str, model: str, usage: dict | None,
         "output_per_million": row["output_per_million"] if row else None,
         "cost_usd": cost,
         "unpriced_reason": None if row else f"model {model!r} absent from rate table {table['version']}",
+        "label": label,
     }
 
     print(json.dumps(entry), flush=True)

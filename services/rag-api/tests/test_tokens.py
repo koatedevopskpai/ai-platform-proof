@@ -174,3 +174,38 @@ def test_cost_endpoint_rejects_an_unknown_dimension():
     app = FastAPI()
     app.include_router(router)
     assert TestClient(app).get("/costs", params={"group_by": "nope"}).status_code == 400
+
+EXPECTED_FIELDS = {
+    "event", "ts_utc", "trace_id", "workload", "environment", "component", "operation",
+    "endpoint", "model", "provider", "mode", "prompt_tokens", "completion_tokens",
+    "total_tokens", "rate_version", "input_per_million", "output_per_million",
+    "cost_usd", "unpriced_reason", "label",
+}
+
+
+def test_record_contains_exactly_the_contract_fields(ledger):
+    """Mirrors the evaluator's contract test.
+
+    Two services write token records. Extracting a shared package would change both Docker build
+    contexts, so the schema is held in place by an identical assertion on each side: if one writer
+    drifts, its own suite fails rather than the two silently producing different ledgers.
+    """
+    entry = tokens.record(component="rag-api", operation="rag.answer", model="gpt-4o-mini",
+                          usage={"prompt_tokens": 1, "completion_tokens": 1}, label="contract")
+    assert set(entry) == EXPECTED_FIELDS
+
+
+def test_a_dated_snapshot_prices_as_its_alias():
+    """Providers echo the resolved snapshot; the rate table keys on the alias."""
+    assert tokens.normalise_model("gpt-4o-mini-2024-07-18") == "gpt-4o-mini"
+    cost, row = tokens.price("gpt-4o-mini-2024-07-18", 1_000_000, 0)
+    assert cost == pytest.approx(0.15)
+    assert row["provider"] == "openai"
+
+
+def test_snapshot_is_priced_but_recorded_as_reported(ledger):
+    entry = tokens.record(component="rag-api", operation="rag.answer",
+                          model="gpt-4o-mini-2024-07-18", usage={"prompt_tokens": 10})
+    assert entry["model"] == "gpt-4o-mini-2024-07-18"
+    assert entry["cost_usd"] is not None
+    assert entry["unpriced_reason"] is None

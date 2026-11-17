@@ -104,8 +104,9 @@ Model spend is attributed the way cloud spend is: every provider call records th
 model and provider that caused it, with the rate used at the time. `GET /costs?group_by=endpoint`
 returns the rollup. See [token economics evidence](evidence/token-economics.md).
 
-Measured on a live run: twelve calls cost $0.00005446, of which `/rag` accounted for 98.2%. Spend is
-measured, not yet capped.
+Measured on a live run: twelve calls cost $0.00005446, of which `/rag` accounted for 98.2%. Judge calls
+made by the RAGAS evaluation are captured too, through a LangChain callback, and tagged by run label —
+in a six-sample evaluation they were 98.4% of that run's cost. Spend is measured, not yet capped.
 
 ## Verification
 

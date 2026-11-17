@@ -111,14 +111,69 @@ made from per-run totals.
 
 ---
 
+## Judge spend through LangChain — closing the black hole
+
+RAGAS drives its judge through LangChain, so those calls never passed through the service's HTTP client
+and never reached the ledger. Their cost existed only as one aggregate at the end of a run:
+measurable afterwards, unattributable during it.
+
+A `BaseCallbackHandler` is now registered on the judge model
+(`services/evaluator/evaluator/langchain_usage.py`). Every completion LangChain performs becomes a
+`token.usage` record with `component: evaluator`, `operation: eval.judge`, the run label and the model
+— same ledger, same schema as the service.
+
+### Measured
+
+One RAGAS run, six samples, five metrics:
+
+| Component | Calls | Prompt | Completion | Total tokens | Cost |
+|---|---:|---:|---:|---:|---:|
+| `evaluator` | 60 | 42,000 | 3,043 | 45,043 | $0.0081258 |
+| `rag-api` (same run) | 18 | 708 | 66 | 774 | $0.00013098 |
+| **Combined** | **78** | — | — | **45,817** | **$0.00825678** |
+
+Judge spend is **98.4%** of the run's total cost. Before this change it was invisible in the ledger and
+appeared only as a single number after the fact; now each of the 60 calls carries its own attribution
+and the run is queryable by label:
+
+```
+GET /costs?group_by=label
+  langchain-check   60 calls   $0.0081258
+  (none)            18 calls   $0.00013098
+```
+
+### Two findings worth keeping
+
+**The provider reports the dated snapshot, not the alias.** OpenAI returns
+`gpt-4o-mini-2024-07-18`, while the rate table is keyed on `gpt-4o-mini`. Every judge call was recorded
+**unpriced** with the reason attached — loud, not silent. Pricing now resolves a trailing
+`-YYYY-MM-DD` to its family alias, so attribution keeps the reported name while cost uses the alias
+rate. This is precisely the failure the "unpriced is loud" rule exists to surface: without it, sixty
+calls would have been counted at zero and the run would have looked cheap.
+
+**Two independent measurements disagree by 6%.** For the same 60 calls and the identical token count
+(45,043), the LangChain callback reports **$0.007665** and the ledger reports **$0.008126**. Token counts
+match exactly, so the difference is rate application — the callback's figure implies an effective rate
+below the published list, most likely cached-input pricing.
+
+Both are recorded. The ledger figure is treated as authoritative because it stores the rate and its
+version with each record; the callback figure is retained as a cross-check. A single number would have
+hidden the disagreement.
+
+---
+
 ## What this establishes
 
 - Every provider call is attributable to workload, environment, component, operation, endpoint, model,
   provider and mode
-- Cost is computed from a versioned rate table and stored with the record
+- Judge spend from RAGAS is captured per call through a LangChain callback, so an evaluation run is
+  attributed rather than aggregated
+- Cost is computed from a versioned rate table and stored with the record, including for dated model
+  snapshots which resolve to their family alias
 - Embedding spend — previously excluded from the live receipt — is now captured and priced
-- Rollups answer "which endpoint, operation, model or provider spent this" via `GET /costs`
-- Unpriced calls are counted separately rather than dropped
+- Rollups answer "which endpoint, operation, model, provider or label spent this" via `GET /costs`
+- Unpriced calls are counted separately rather than dropped, which is how the snapshot-name problem was
+  found
 
 ## What it does not establish
 
@@ -126,7 +181,11 @@ made from per-run totals.
   retention policy, cross-process locking guarantee or query index. It answers questions at
   project scale, not fleet scale
 - **Budget enforcement.** Cost is measured, not capped. A runaway run is visible afterwards, not
-  prevented — this is the C6 gap and it is unchanged
+  prevented — this is the C6 gap and it is unchanged. Note that the LangChain handler does observe every
+  judge call *during* a run, so a per-run budget could now abort mid-run rather than only inspect
+  afterwards; that is the design C6 should take
+- **Agreement between measurement methods.** The callback and the ledger differ by 6% on the same run.
+  The ledger is treated as authoritative because it stores the rate used, but neither is an invoice
 - **Tenant or end-user attribution.** The dimensions stop at endpoint. Charging back to a consumer
   would need one more tag
 - **Currency or tax handling.** USD, per provider, before any discount, credit or regional uplift

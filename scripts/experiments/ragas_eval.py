@@ -104,6 +104,7 @@ def main() -> int:
         judge_base_url=args.judge_base_url,
         judge_api_key=api_key,
         embedding_model=args.embedding_model,
+        label=args.label,
     )
 
     by_id = {sample["case_id"]: sample for sample in result["per_sample"]}
@@ -126,6 +127,7 @@ def main() -> int:
         "samples": rows,
         "aggregate": aggregate,
         "judge_usage": result["usage"],
+        "judge_ledger": result["judge_ledger"],
         "metric_names_returned": result["metric_names_returned"],
         "duration_seconds": round(time.time() - started, 1),
         "limits": [
@@ -146,6 +148,7 @@ def main() -> int:
         "samples": len(records),
         "aggregate": aggregate,
         "judge_usage": result["usage"],
+        "judge_ledger": result["judge_ledger"],
         "duration_seconds": receipt["duration_seconds"],
         "receipt": str(path),
     }, indent=2))
