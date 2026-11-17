@@ -354,9 +354,21 @@ stores the rate used. A single number would have hidden the disagreement.
 Dated model snapshots such as `gpt-4o-mini-2024-07-18` resolve to their family alias for pricing, while
 the reported name is retained for attribution.
 
-**Not yet enforced.** Spend is measured, not capped. A runaway run is visible afterwards rather than
-prevented. Because the LangChain handler sees every judge call during a run, a per-run budget can now
-abort mid-run rather than only inspect afterwards.
+**Enforced before spending.** Three guards run before the provider call: a completion cap sent to the
+provider as `max_tokens`, a prompt ceiling that rejects rather than truncates, and an allowlist that
+permits only models present in the rate table. Guards raise rather than returning a fallback answer,
+because a fallback still produces text that a client ignoring `fallback: true` would ship — `400` for
+correctable input, `503` for configuration.
+
+A truncated answer (`finish_reason == "length"`) is surfaced as `truncated`, and the live acceptance
+gate rejects it: a partial answer cannot be promoted.
+
+A per-run budget (`--max-cost-usd`, default $0.05) aborts with a partial receipt and a non-zero exit.
+The judge path is bounded from inside the LangChain callback, so an evaluation cannot overspend before
+being checked.
+
+Worst case per call at the caps is $0.0015, so a twelve-call run cannot exceed $0.018 — below the run
+budget by design. See [cost guard evidence](../evidence/cost-guards.md).
 
 ---
 

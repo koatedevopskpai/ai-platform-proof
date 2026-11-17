@@ -80,6 +80,7 @@ def score(
     judge_api_key: str,
     embedding_model: str,
     label: str | None = None,
+    max_cost_usd: float | None = None,
 ) -> dict:
     """Score rows of {case_id, question, contexts, answer, reference}.
 
@@ -109,6 +110,7 @@ def score(
         model=judge_model,
         base_url=judge_base_url,
         table=token_ledger.load_rates(),
+        max_cost_usd=max_cost_usd,
     )
 
     llm, embeddings = build_adapters(judge_model, judge_base_url, judge_api_key, embedding_model,
@@ -175,6 +177,8 @@ def score(
             "total_tokens": usage_handler.total_tokens,
             "total_cost_usd": usage_handler.total_cost_usd,
             "unpriced": sum(1 for record in usage_handler.records if record.get("cost_usd") is None),
+            "exceeded": usage_handler.exceeded,
+            "limit_usd": max_cost_usd,
         },
         "metric_names_returned": sorted(str(c) for c in frame.columns if c in METRIC_NAMES),
         "result_attributes": sorted(n for n in dir(result) if not n.startswith("_"))[:40],

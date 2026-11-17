@@ -13,6 +13,9 @@ def configure(monkeypatch, response):
     monkeypatch.setattr(settings, 'llm_api_key', '')
     monkeypatch.setattr(settings, 'llm_base_url', '')
     monkeypatch.setattr(settings, 'llm_model', 'fixture-model')
+    # These tests exercise transport behaviour; the cost guards have their own suite.
+    monkeypatch.setattr(settings, 'llm_model_allowlist', '')
+    monkeypatch.setattr(settings, 'token_require_priced_model', False)
     monkeypatch.setattr(httpx, 'post', lambda *args, **kwargs: response)
 
 

@@ -13,6 +13,11 @@ from app.core import tokens
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     with engine.connect() as conn:
+        # Serialise concurrent startup. CREATE EXTENSION IF NOT EXISTS is not atomic against
+        # concurrent DDL: two instances starting on a fresh database race and one fails with a
+        # duplicate-key error on pg_extension. An xact-scoped advisory lock makes startup ordering
+        # explicit rather than lucky.
+        conn.execute(text("SELECT pg_advisory_xact_lock(hashtext('aiplatform-schema-init'))"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()
     Base.metadata.create_all(bind=engine)

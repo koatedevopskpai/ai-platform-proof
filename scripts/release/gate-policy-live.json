@@ -5,6 +5,7 @@
     "provider_answer",
     "not_fallback",
     "usage_present",
+    "not_truncated",
     "sources_valid",
     "required_phrases",
     "forbidden_phrases"

@@ -82,6 +82,8 @@ def main() -> int:
     parser.add_argument("--embedding-model", default="text-embedding-3-small")
     parser.add_argument("--top-k", type=int, default=3)
     parser.add_argument("--label", default="ragas")
+    parser.add_argument("--max-cost-usd", type=float, default=0.05,
+                        help="Ceiling for judge spend; the run aborts when it is passed")
     args = parser.parse_args()
 
     api_key = os.environ.get("OPENAI_API_KEY", "")
@@ -105,6 +107,7 @@ def main() -> int:
         judge_api_key=api_key,
         embedding_model=args.embedding_model,
         label=args.label,
+        max_cost_usd=args.max_cost_usd,
     )
 
     by_id = {sample["case_id"]: sample for sample in result["per_sample"]}
@@ -128,6 +131,8 @@ def main() -> int:
         "aggregate": aggregate,
         "judge_usage": result["usage"],
         "judge_ledger": result["judge_ledger"],
+        "budget": {"limit_usd": args.max_cost_usd,
+                   "exceeded": result["judge_ledger"]["exceeded"]},
         "metric_names_returned": result["metric_names_returned"],
         "duration_seconds": round(time.time() - started, 1),
         "limits": [
@@ -152,7 +157,7 @@ def main() -> int:
         "duration_seconds": receipt["duration_seconds"],
         "receipt": str(path),
     }, indent=2))
-    return 0
+    return 2 if result["judge_ledger"]["exceeded"] else 0
 
 
 if __name__ == "__main__":

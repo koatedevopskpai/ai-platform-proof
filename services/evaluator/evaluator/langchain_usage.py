@@ -71,13 +71,16 @@ class LangChainUsageHandler(BaseCallbackHandler):
 
     def __init__(self, *, component: str = "evaluator", operation: str = "eval.judge",
                  label: str | None = None, model: str | None = None,
-                 base_url: str = "", table: dict | None = None) -> None:
+                 base_url: str = "", table: dict | None = None,
+                 max_cost_usd: float | None = None) -> None:
         self.component = component
         self.operation = operation
         self.label = label
         self.default_model = model
         self.base_url = base_url
         self.table = table
+        self.max_cost_usd = max_cost_usd
+        self.exceeded = False
         self.records: list[dict] = []
 
     def on_llm_end(self, response, **kwargs) -> None:  # noqa: D401 - LangChain hook
@@ -98,6 +101,12 @@ class LangChainUsageHandler(BaseCallbackHandler):
             reason_override=None if usage else "usage not reported by the provider wrapper",
         )
         self.records.append(entry)
+
+        if self.max_cost_usd is not None and self.total_cost_usd > self.max_cost_usd:
+            # Checked here, mid-run, because this callback sees every judge call. Waiting until the
+            # evaluation finishes would report a breach after the money was spent.
+            self.exceeded = True
+            raise token_ledger.BudgetExceeded(self.total_cost_usd, self.max_cost_usd)
 
     @property
     def total_tokens(self) -> int:

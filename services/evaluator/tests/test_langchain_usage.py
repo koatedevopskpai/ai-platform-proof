@@ -117,3 +117,20 @@ def test_handler_prices_a_snapshot_model_but_keeps_the_reported_name():
     assert entry["model"] == "gpt-4o-mini-2024-07-18"
     assert entry["cost_usd"] is not None
     assert entry["unpriced_reason"] is None
+
+
+def test_budget_is_enforced_mid_run():
+    """The handler sees every judge call, so the ceiling stops the run rather than reporting late."""
+    handler = LangChainUsageHandler(model="gpt-4o-mini", max_cost_usd=0.00001)
+    with pytest.raises(token_ledger.BudgetExceeded) as caught:
+        handler.on_llm_end(chat_result(llm_output={
+            "token_usage": {"prompt_tokens": 1_000_000, "completion_tokens": 0},
+        }))
+    assert handler.exceeded is True
+    assert caught.value.spent_usd > caught.value.limit_usd
+
+
+def test_budget_not_exceeded_does_not_raise():
+    handler = LangChainUsageHandler(model="gpt-4o-mini", max_cost_usd=1.0)
+    handler.on_llm_end(chat_result(llm_output={"token_usage": {"prompt_tokens": 10, "completion_tokens": 2}}))
+    assert handler.exceeded is False
