@@ -120,9 +120,17 @@ DETAIL: Key (extname)=(vector) already exists.
 [SQL: CREATE EXTENSION IF NOT EXISTS vector]
 ```
 
-`CREATE EXTENSION IF NOT EXISTS` is **not atomic** against concurrent DDL. Startup now takes an
-xact-scoped advisory lock first, so ordering is explicit rather than lucky. Re-running the same
-concurrent start succeeds.
+`CREATE EXTENSION IF NOT EXISTS` is **not atomic** against concurrent DDL — it checks, then creates
+inside the transaction, so both instances see "absent" and one loses on the unique index. No server
+setting changes this.
+
+Startup now takes an `pg_advisory_xact_lock` first, so ordering is explicit rather than lucky. Re-running
+the same concurrent start succeeds.
+
+**This is a mitigation, not a fix.** The underlying problem is that schema DDL lives in application
+startup, so every replica attempts it. A single-writer migration step is the durable answer; Alembic
+would add versioning and reversibility but changes the release contract that the O02 receipts describe.
+Recorded in `docs/architecture.md` §4 as a follow-on project.
 
 ### The gate was not re-runnable
 

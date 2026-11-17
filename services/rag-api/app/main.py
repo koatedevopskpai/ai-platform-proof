@@ -15,8 +15,8 @@ async def lifespan(app: FastAPI):
     with engine.connect() as conn:
         # Serialise concurrent startup. CREATE EXTENSION IF NOT EXISTS is not atomic against
         # concurrent DDL: two instances starting on a fresh database race and one fails with a
-        # duplicate-key error on pg_extension. An xact-scoped advisory lock makes startup ordering
-        # explicit rather than lucky.
+        # duplicate-key error on pg_extension. This lock is a mitigation, not a fix — the durable
+        # answer is a single-writer migration step. See docs/architecture.md §4.
         conn.execute(text("SELECT pg_advisory_xact_lock(hashtext('aiplatform-schema-init'))"))
         conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         conn.commit()

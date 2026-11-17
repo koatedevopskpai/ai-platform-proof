@@ -80,7 +80,19 @@ bodies are not recorded.
 ## 4. Data plane
 
 A single PostgreSQL instance with `pgvector`, shared by `rag-api` and `dotnet-ingest`. The
-extension and schema are created on service startup; there are no migration files.
+extension and schema are created on service **startup**; there are no migration files.
+
+**Known limitation, not a design choice.** Every replica attempts the same DDL. `CREATE EXTENSION IF
+NOT EXISTS` is not atomic against concurrent DDL — it checks then creates inside the transaction, so two
+instances starting against a fresh database both proceed and one fails on the unique index over
+`pg_extension`. That was observed, not theorised.
+
+Startup now takes a `pg_advisory_xact_lock` before the DDL, which serialises it. **That is a
+mitigation.** The durable fix is a single-writer migration step: one process owns the schema and the
+application only asserts that it is present. Alembic would go further, with versioned and reversible
+migrations, but it changes the release contract — `release.py` builds an immutable bundle and starts it
+with `--no-build --pull never`, so a migration phase would alter the deployment shape the O02 receipts
+describe. Schema migration is therefore a follow-on project, not adopted here.
 
 ```sql
 documents(
