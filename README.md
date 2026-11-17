@@ -106,7 +106,9 @@ returns the rollup. See [token economics evidence](evidence/token-economics.md).
 
 Measured on a live run: twelve calls cost $0.00005446, of which `/rag` accounted for 98.2%. Judge calls
 made by the RAGAS evaluation are captured too, through a LangChain callback, and tagged by run label —
-in a six-sample evaluation they were 98.4% of that run's cost. Spend is measured, not yet capped.
+in a six-sample evaluation they were 98.4% of that run's cost. Spend is capped: completion and prompt
+ceilings, a priced-model allowlist, and a per-run budget that aborts mid-run. See
+[cost guard evidence](evidence/cost-guards.md).
 
 ## Verification
 

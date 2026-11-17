@@ -26,6 +26,7 @@ CHECKS = (
     "provider_answer",
     "not_fallback",
     "usage_present",
+    "not_truncated",
     "sources_valid",
     "required_phrases",
     "forbidden_phrases",
@@ -66,6 +67,8 @@ def case_checks(case: dict, corpus: dict, search: dict, answer: dict) -> dict:
         "provider_answer": answer.get("generation_mode") == "provider",
         "not_fallback": answer.get("fallback") is False and answer.get("blocked") is not True,
         "usage_present": isinstance(usage.get("total_tokens"), int) and usage["total_tokens"] > 0,
+        # A completion stopped at the cap is a partial answer. Fail closed rather than promote it.
+        "not_truncated": answer.get("truncated") is False,
         "sources_valid": bool(ids)
         and len(ids) == len(set(ids))
         and all(identifier in corpus and content == corpus.get(identifier)

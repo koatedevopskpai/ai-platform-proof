@@ -8,7 +8,7 @@ from app.core.db import get_db
 from app.core import tokens
 from app.models import Document
 from app.services.embedding import embedding_service
-from app.services.rag import rag_service
+from app.services.rag import rag_service, GenerationBlocked
 from app.services.retrieval import RetrievalService
 
 router = APIRouter()
@@ -71,4 +71,9 @@ def search(req: QueryRequest, db: Session = Depends(get_db)) -> dict:
 def rag(req: QueryRequest, db: Session = Depends(get_db)) -> dict:
     qvec = embedding_service.embed(req.query)
     contexts = RetrievalService(db).search(qvec, top_k=req.top_k, query_text=req.query)
-    return rag_service.answer(req.query, contexts)
+    try:
+        return rag_service.answer(req.query, contexts)
+    except GenerationBlocked as exc:
+        # A cost guard refused before spending anything. Fail loudly rather than returning a
+        # fallback answer that a client might ship.
+        raise HTTPException(status_code=exc.status_code, detail=exc.reason) from exc

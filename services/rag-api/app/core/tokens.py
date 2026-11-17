@@ -210,3 +210,23 @@ def rollup(group_by: str = "operation", path: Path | None = None) -> dict:
         "total_cost_usd": round(sum(item["cost_usd"] for item in rows), 9),
         "rows": rows,
     }
+
+def spent(path: Path | None = None) -> float:
+    """Total attributed cost in the ledger, in USD.
+
+    Unpriced entries are excluded and reported separately by `rollup`, so this number is a floor on
+    real spend rather than a claim of completeness.
+    """
+    path = path or ledger_path()
+    if not path.exists():
+        return 0.0
+    total = 0.0
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        entry = json.loads(line)
+        if entry.get("event") != "token.usage":
+            continue
+        if entry.get("cost_usd") is not None:
+            total += float(entry["cost_usd"])
+    return round(total, 9)

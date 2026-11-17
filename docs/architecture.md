@@ -80,7 +80,19 @@ bodies are not recorded.
 ## 4. Data plane
 
 A single PostgreSQL instance with `pgvector`, shared by `rag-api` and `dotnet-ingest`. The
-extension and schema are created on service startup; there are no migration files.
+extension and schema are created on service **startup**; there are no migration files.
+
+**Known limitation, not a design choice.** Every replica attempts the same DDL. `CREATE EXTENSION IF
+NOT EXISTS` is not atomic against concurrent DDL — it checks then creates inside the transaction, so two
+instances starting against a fresh database both proceed and one fails on the unique index over
+`pg_extension`. That was observed, not theorised.
+
+Startup now takes a `pg_advisory_xact_lock` before the DDL, which serialises it. **That is a
+mitigation.** The durable fix is a single-writer migration step: one process owns the schema and the
+application only asserts that it is present. Alembic would go further, with versioned and reversible
+migrations, but it changes the release contract — `release.py` builds an immutable bundle and starts it
+with `--no-build --pull never`, so a migration phase would alter the deployment shape the O02 receipts
+describe. Schema migration is therefore a follow-on project, not adopted here.
 
 ```sql
 documents(
@@ -354,9 +366,21 @@ stores the rate used. A single number would have hidden the disagreement.
 Dated model snapshots such as `gpt-4o-mini-2024-07-18` resolve to their family alias for pricing, while
 the reported name is retained for attribution.
 
-**Not yet enforced.** Spend is measured, not capped. A runaway run is visible afterwards rather than
-prevented. Because the LangChain handler sees every judge call during a run, a per-run budget can now
-abort mid-run rather than only inspect afterwards.
+**Enforced before spending.** Three guards run before the provider call: a completion cap sent to the
+provider as `max_tokens`, a prompt ceiling that rejects rather than truncates, and an allowlist that
+permits only models present in the rate table. Guards raise rather than returning a fallback answer,
+because a fallback still produces text that a client ignoring `fallback: true` would ship — `400` for
+correctable input, `503` for configuration.
+
+A truncated answer (`finish_reason == "length"`) is surfaced as `truncated`, and the live acceptance
+gate rejects it: a partial answer cannot be promoted.
+
+A per-run budget (`--max-cost-usd`, default $0.05) aborts with a partial receipt and a non-zero exit.
+The judge path is bounded from inside the LangChain callback, so an evaluation cannot overspend before
+being checked.
+
+Worst case per call at the caps is $0.0015, so a twelve-call run cannot exceed $0.018 — below the run
+budget by design. See [cost guard evidence](../evidence/cost-guards.md).
 
 ---
 

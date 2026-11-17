@@ -11,6 +11,19 @@ from app.core.telemetry import span
 from app.core import tokens
 
 
+class GenerationBlocked(RuntimeError):
+    """A pre-flight guard refused the call before any tokens were spent.
+
+    Raised rather than returning a fallback answer: a fallback would still produce text, and a client
+    that ignores `fallback: true` would ship it. A guard that silently answers is not a guard.
+    """
+
+    def __init__(self, reason: str, status_code: int = 503) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.status_code = status_code
+
+
 class RAGService:
     PROMPT_INJECTION_PATTERNS = [
         re.compile(r"ignore (all )?previous instructions", re.I),
@@ -37,7 +50,8 @@ class RAGService:
         guardrail = self._check_guardrails(query)
         if guardrail:
             return {"answer": guardrail, "sources": [], "fallback": False, "blocked": True,
-                    "generation_mode": None, "fallback_reason": None, "usage": None, "model": None}
+                    "generation_mode": None, "fallback_reason": None, "usage": None, "model": None,
+                    "truncated": False}
 
         redacted = self._redact_pii(query)
 
@@ -50,7 +64,7 @@ class RAGService:
         )
 
         with span('model.generate', 'rag-model') as observation:
-            answer, used_llm, reason, usage = self._generate(prompt, contexts)
+            answer, used_llm, reason, usage, truncated = self._generate(prompt, contexts)
             observation.update(generation_mode='provider' if used_llm else 'deterministic_fallback', fallback_reason=reason,
                                model=self.model if used_llm else None,
                                total_tokens=(usage or {}).get('total_tokens'))
@@ -66,9 +80,32 @@ class RAGService:
             "fallback_reason": reason,
             "usage": usage,
             "model": self.model if used_llm else None,
+            "truncated": truncated,
         }
 
-    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool, str | None, dict | None]:
+    def _preflight(self, prompt: str, contexts: Sequence[dict]) -> None:
+        """Refuse the call before it is made. A breach here costs nothing.
+
+        Skipped entirely when no provider call would happen, so mock mode is unaffected.
+        """
+        if not (self.api_key and contexts):
+            return
+
+        allowed = {name.strip() for name in settings.llm_model_allowlist.split(',') if name.strip()}
+        if allowed and self.model not in allowed:
+            raise GenerationBlocked('model_not_allowed', 503)
+
+        if settings.token_require_priced_model:
+            _, row = tokens.price(self.model, 0, 0)
+            if row is None:
+                raise GenerationBlocked('model_not_priced', 503)
+
+        estimated_tokens = max(1, len(prompt) // 4)
+        if estimated_tokens > settings.llm_max_prompt_tokens:
+            raise GenerationBlocked('prompt_too_large', 400)
+
+    def _generate(self, prompt: str, contexts: Sequence[dict]) -> tuple[str, bool, str | None, dict | None, bool]:
+        self._preflight(prompt, contexts)
         if self.api_key and contexts:
             try:
                 resp = httpx.post(
@@ -78,14 +115,20 @@ class RAGService:
                         "model": self.model,
                         "messages": [{"role": "user", "content": prompt}],
                         "temperature": 0.0,
+                        # The completion cannot exceed this, so one call cannot run away.
+                        "max_tokens": settings.llm_max_completion_tokens,
                     },
                     timeout=30.0,
                 )
                 resp.raise_for_status()
                 body = resp.json()
-                answer = body["choices"][0]["message"]["content"]
+                choice = body["choices"][0]
+                answer = choice["message"]["content"]
                 if not isinstance(answer, str) or not answer.strip():
                     raise ValueError("empty provider answer")
+                # A provider that stops at the cap returns a partial answer. Surfacing that is the
+                # difference between a bounded call and a silently truncated one.
+                truncated = choice.get("finish_reason") == "length"
                 tokens.record(
                     component="rag-api",
                     operation="rag.answer",
@@ -93,16 +136,16 @@ class RAGService:
                     usage=body.get("usage"),
                     base_url=self.base_url,
                 )
-                return answer.strip(), True, None, body.get("usage")
+                return answer.strip(), True, None, body.get("usage"), truncated
             except httpx.HTTPStatusError as exc:
                 reason = f"provider_http_{exc.response.status_code}"
             except httpx.HTTPError:
                 reason = "provider_transport_error"
             except (KeyError, ValueError, TypeError, IndexError):
                 reason = "provider_invalid_response"
-            return self._deterministic_fallback(prompt, contexts), False, reason, None
+            return self._deterministic_fallback(prompt, contexts), False, reason, None, False
         reason = "no_context" if not contexts else "mock_generation"
-        return self._deterministic_fallback(prompt, contexts), False, reason, None
+        return self._deterministic_fallback(prompt, contexts), False, reason, None, False
 
     @staticmethod
     def _deterministic_fallback(prompt: str, contexts: Sequence[dict]) -> str:

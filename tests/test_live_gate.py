@@ -42,6 +42,7 @@ def good_answer(identifier='o02-refund'):
         'blocked': False,
         'generation_mode': 'provider',
         'usage': {'prompt_tokens': 200, 'completion_tokens': 12, 'total_tokens': 212},
+        'truncated': False,
     }
 
 
@@ -117,6 +118,11 @@ class CaseCheckTests(unittest.TestCase):
         answer = good_answer()
         answer['answer'] = '   '
         self.assertFalse(live_gate.case_checks(CASE, CORPUS, good_search(), answer)['required_phrases'])
+
+    def test_truncated_answer_is_rejected(self):
+        answer = good_answer()
+        answer['truncated'] = True
+        self.assertFalse(live_gate.case_checks(CASE, CORPUS, good_search(), answer)['not_truncated'])
 
 
 class AssessTests(unittest.TestCase):

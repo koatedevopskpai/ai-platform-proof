@@ -46,9 +46,12 @@ def main() -> int:
     parser.add_argument("--input-rate", type=float, default=None, help="USD per 1M input tokens")
     parser.add_argument("--output-rate", type=float, default=None, help="USD per 1M output tokens")
     parser.add_argument("--top-k", type=int, default=3)
+    parser.add_argument("--max-cost-usd", type=float, default=0.05,
+                        help="Abort when attributed spend for this run passes this ceiling")
     args = parser.parse_args()
 
     from app.core.config import settings  # noqa: E402
+    from app.core import tokens  # noqa: E402
     from app.core.db import Base  # noqa: E402
     import app.models  # noqa: F401,E402
     from app.services.embedding import embedding_service  # noqa: E402
@@ -79,6 +82,9 @@ def main() -> int:
     rag = RAGService()
     cases = []
     total_prompt = total_completion = 0
+    baseline_spend = tokens.spent()
+    warned = False
+    breach = None
 
     with Session() as session:
         retrieval = RetrievalService(session)
@@ -111,6 +117,18 @@ def main() -> int:
                 "forbidden_phrases_absent": {p: (p.lower() not in answer["answer"].lower()) for p in forbidden},
                 "latency_ms": elapsed,
             })
+
+            spent = tokens.spent() - baseline_spend
+            if not warned and spent >= args.max_cost_usd * 0.5:
+                print(f"token.budget warning: ${spent:.6f} of ${args.max_cost_usd:.6f} used",
+                      file=sys.stderr)
+                warned = True
+            if spent > args.max_cost_usd:
+                # Stop here rather than after the run: the point of a ceiling is that the next call
+                # never happens.
+                breach = {"reason": "budget_exceeded", "spent_usd": round(spent, 9),
+                          "limit_usd": args.max_cost_usd, "after_case": case["id"]}
+                break
 
     transcript = "\n---\n".join(f"{c['case_id']}: {c['answer']}" for c in cases)
     cost = None
@@ -146,6 +164,10 @@ def main() -> int:
             },
         },
         "transcript_sha256": hashlib.sha256(transcript.encode()).hexdigest(),
+        "budget": {"limit_usd": args.max_cost_usd,
+                   "spent_usd": round(tokens.spent() - baseline_spend, 9),
+                   "exceeded": breach is not None},
+        "aborted": breach,
         "limits": [
             "one provider and one model at one point in time",
             "three synthetic fixtures; not a benchmark",
@@ -163,6 +185,8 @@ def main() -> int:
         "embedding": receipt["embedding"],
         "generation": receipt["generation"],
         "tokens": receipt["totals"],
+        "budget": receipt["budget"],
+        "aborted": breach,
         "transcript_sha256": receipt["transcript_sha256"][:16],
         "cases": [
             {"case": c["case_id"], "mode": c["generation_mode"],
@@ -173,7 +197,7 @@ def main() -> int:
         ],
         "receipt": str(path),
     }, indent=2))
-    return 0
+    return 0 if breach is None else 2
 
 
 if __name__ == "__main__":

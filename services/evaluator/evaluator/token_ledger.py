@@ -196,3 +196,16 @@ def rollup(group_by: str = "component", path: Path | None = None) -> dict:
         "total_cost_usd": round(sum(item["cost_usd"] for item in rows), 9),
         "rows": rows,
     }
+
+
+class BudgetExceeded(RuntimeError):
+    """Raised mid-run when the accumulated judge cost passes its ceiling.
+
+    Raised from the callback rather than checked after the fact, so a runaway evaluation stops during
+    the run instead of being discovered when it finishes.
+    """
+
+    def __init__(self, spent_usd: float, limit_usd: float) -> None:
+        super().__init__(f"judge budget exceeded: ${spent_usd:.6f} > ${limit_usd:.6f} (USD)")
+        self.spent_usd = spent_usd
+        self.limit_usd = limit_usd

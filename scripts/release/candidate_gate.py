@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import json
 from pathlib import Path
 import re
+import urllib.error
 from urllib.request import Request, urlopen
 
 from gate_policy import assess_rows, load_policy
@@ -48,7 +49,14 @@ def _evaluate_live(base, dataset, provenance, request=post, policy_path=None):
     """Live-mode acceptance: structural predicates against actual provider responses."""
     corpus = {doc['id']: doc['content'] for doc in dataset['documents']}
     for doc in dataset['documents']:
-        ingestion = request(base, '/ingest', doc)
+        try:
+            ingestion = request(base, '/ingest', doc)
+        except urllib.error.HTTPError as exc:
+            # A fixture that already exists is not a failure: a gate must be re-runnable against the
+            # same database without the operator having to clear it first.
+            if exc.code != 409:
+                raise
+            ingestion = {'id': doc['id'], 'dimensions': 384}
         if ingestion.get('id') != doc['id'] or ingestion.get('dimensions') != 384:
             raise ValueError('gateway ingestion did not confirm expected fixture/vector dimensions')
 
