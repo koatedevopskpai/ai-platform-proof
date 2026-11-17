@@ -48,8 +48,13 @@ jobs:
       - run: npm run build
       - run: npm test
 
-  python:
-    name: Python build + test
+  # rag-api and evaluator are separate jobs so a failure is attributable.
+  #
+  # They used to share one job: a ragas installation failure and a rag-api test failure both surfaced
+  # as "Python build + test", which made triage guesswork. They also run in parallel now, and the
+  # evaluator's dependency install no longer gates feedback on the service.
+  rag-api:
+    name: Python — rag-api
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -59,8 +64,17 @@ jobs:
       - name: Install rag-api deps
         run: pip install -r services/rag-api/requirements-dev.txt
       - name: Test rag-api
-        run: python -m pytest services/rag-api/tests
+        run: python -m pytest services/rag-api/tests -q
+
+  evaluator:
+    name: Python — evaluator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install evaluator deps
         run: pip install -r services/evaluator/requirements-dev.txt
       - name: Test evaluator
-        run: python -m pytest services/evaluator/tests
+        run: python -m pytest services/evaluator/tests -q
