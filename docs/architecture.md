@@ -366,6 +366,13 @@ stores the rate used. A single number would have hidden the disagreement.
 Dated model snapshots such as `gpt-4o-mini-2024-07-18` resolve to their family alias for pricing, while
 the reported name is retained for attribution.
 
+**Judge calibration is incomplete, and stated as such.** Position bias was probed and not observed on
+three pairs; the verbosity probe saturated at 1.0 for every item and therefore measured nothing; a
+self-preference gap of 0.17 exists but is confounded with genuine answer quality. Cohen's kappa against
+human labels has not been measured. See
+[judge calibration evidence](../evidence/judge-calibration.md) — the tooling is built and tested, the
+labels are not collected.
+
 **Enforced before spending.** Three guards run before the provider call: a completion cap sent to the
 provider as `max_tokens`, a prompt ceiling that rejects rather than truncates, and an allowlist that
 permits only models present in the rate table. Guards raise rather than returning a fallback answer,
