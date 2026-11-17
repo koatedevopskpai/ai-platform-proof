@@ -38,11 +38,27 @@ def load_dataset(path):
     return data
 
 
-def post(base, route, payload):
+def post(base, route, payload, headers=None):
+    merged = {'content-type': 'application/json', **(headers or {})}
     request = Request(base + route, data=json.dumps(payload).encode(),
-                      headers={'content-type': 'application/json'}, method='POST')
+                      headers=merged, method='POST')
     with urlopen(request, timeout=15) as response:
         return json.load(response)
+
+
+def with_run_label(request, run_label):
+    """Bind a run label onto the transport so the service can attribute spend to this run.
+
+    The service reads `x-run-label` and records it on every token.usage entry, which is what makes
+    cost-per-accepted-answer computable by joining usage to outcomes.
+    """
+    if not run_label:
+        return request
+
+    def wrapped(base, route, payload):
+        return request(base, route, payload, headers={'x-run-label': run_label})
+
+    return wrapped
 
 
 def _evaluate_live(base, dataset, provenance, request=post, policy_path=None):
@@ -81,8 +97,9 @@ def _evaluate_live(base, dataset, provenance, request=post, policy_path=None):
     return live_gate.report(rows, policy, len(dataset['cases']), dataset['dataset_id'], provenance)
 
 
-def evaluate(base, dataset_path, provenance, request=post, policy_path=None):
+def evaluate(base, dataset_path, provenance, request=post, policy_path=None, run_label=None):
     dataset = load_dataset(dataset_path)
+    request = with_run_label(request, run_label)
     if dataset['execution_mode'] == 'live_provider':
         return _evaluate_live(base, dataset, provenance, request, policy_path)
     corpus = {d['id']: d['content'] for d in dataset['documents']}

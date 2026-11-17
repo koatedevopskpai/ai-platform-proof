@@ -209,3 +209,41 @@ def test_snapshot_is_priced_but_recorded_as_reported(ledger):
     assert entry["model"] == "gpt-4o-mini-2024-07-18"
     assert entry["cost_usd"] is not None
     assert entry["unpriced_reason"] is None
+
+
+def test_run_label_attributes_the_record(ledger):
+    tokens.set_run_label("gate-run-42")
+    try:
+        entry = tokens.record(component="rag-api", operation="rag.answer",
+                              model="gpt-4o-mini", usage={"prompt_tokens": 5})
+    finally:
+        tokens.set_run_label(None)
+    assert entry["label"] == "gate-run-42"
+
+
+def test_an_explicit_label_wins_over_the_run_context(ledger):
+    tokens.set_run_label("from-header")
+    try:
+        entry = tokens.record(component="rag-api", operation="rag.answer",
+                              model="gpt-4o-mini", usage={"prompt_tokens": 5}, label="explicit")
+    finally:
+        tokens.set_run_label(None)
+    assert entry["label"] == "explicit"
+
+
+def test_a_malformed_run_label_is_dropped_not_stored(ledger):
+    for bad in ("has spaces", "x" * 65, "", "semi;colon", "quote\"mark"):
+        tokens.set_run_label(bad)
+        try:
+            entry = tokens.record(component="rag-api", operation="rag.answer",
+                                  model="gpt-4o-mini", usage={"prompt_tokens": 5})
+        finally:
+            tokens.set_run_label(None)
+        assert entry["label"] is None, bad
+
+
+def test_absent_run_label_records_null(ledger):
+    tokens.set_run_label(None)
+    entry = tokens.record(component="rag-api", operation="rag.answer",
+                          model="gpt-4o-mini", usage={"prompt_tokens": 5})
+    assert entry["label"] is None

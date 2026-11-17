@@ -177,3 +177,23 @@ class ModeDispatchTests(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class RunLabelTransportTests(unittest.TestCase):
+    def test_the_run_label_travels_as_a_header(self):
+        seen = {}
+
+        def fake(base, route, payload, headers=None):
+            seen["headers"] = headers or {}
+            return {"id": "x", "dimensions": 384}
+
+        wrapped = candidate_gate.with_run_label(fake, "gate-run-42")
+        wrapped("http://example", "/ingest", {"id": "x"})
+        self.assertEqual(seen["headers"], {"x-run-label": "gate-run-42"})
+
+    def test_no_label_leaves_the_transport_untouched(self):
+        def fake(base, route, payload):
+            return {"id": "x"}
+
+        self.assertIs(candidate_gate.with_run_label(fake, None), fake)
+        self.assertIs(candidate_gate.with_run_label(fake, ""), fake)
