@@ -127,6 +127,28 @@ null — an invented price is worse than no price.
 
 The key is read from the environment and never printed or written into the receipt.
 
+### `ragas_eval.py` — RAGAS framework evaluation
+
+Scores live answers with the **RAGAS library** (`ragas==0.4.4`): faithfulness, answer relevancy,
+context precision and recall, and answer correctness. Requires a running service in provider mode; it
+refuses to score deterministic fallback output, because scores over a template describe the template.
+
+```sh
+docker run --rm --network ragaseval --entrypoint python -v "$PWD:/src" -w /src \
+  -e RAG_API_URL=http://ragas-api:8000 \
+  -e OPENAI_API_KEY="$OPENAI_API_KEY" -e OPENAI_BASE_URL=https://api.openai.com/v1 \
+  ai-platform-proof-evaluator scripts/experiments/ragas_eval.py --label judge-gpt4o-mini
+```
+
+Evaluation set: `services/evaluator/datasets/ragas_set.jsonl` — three acceptance fixtures and three
+held-out cases. Results and interpretation: `evidence/ragas-eval.md`.
+
+Two things about 0.4.4 worth knowing before editing this script:
+
+- `evaluate()` accepts only the **legacy** metric singletons; the modern `ragas.metrics.collections`
+  classes are a different base type and are rejected.
+- The legacy path needs the deprecated LangChain wrappers. Both are pinned deliberately.
+
 ## Limitations
 
 - Random embeddings test the retrieval SQL, not semantic retrieval quality

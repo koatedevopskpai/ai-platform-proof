@@ -142,3 +142,7 @@ Live generation is exercised against two providers with recorded token counts an
 [evidence/live-provider.md](evidence/live-provider.md). That is a demonstration that the path works
 and is measurable, not a quality evaluation, and the promotion gate still does not run against live
 answers.
+
+Offline evaluation uses the RAGAS library — [evidence/ragas-eval.md](evidence/ragas-eval.md). Its
+scores are reported, never used to gate, because measurement showed them disagreeing with obvious
+ground truth: a source-identical answer scored 0.33 faithful.

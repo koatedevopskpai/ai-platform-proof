@@ -226,6 +226,13 @@ model answer is not a substring of its contexts. Until the live-mode predicate s
 path has no promotion control — the gate protects the mock path only. Recorded as workstream C5 in the
 briefing document.
 
+**Offline evaluation uses the RAGAS library**, pinned at `0.4.4` in `services/evaluator`. It scores
+live answers on faithfulness, answer relevancy, context precision and recall, and answer correctness.
+It sits deliberately **outside** the promotion gate: on six samples it scored a source-identical
+answer 0.333 faithful and a correct answer 0.0 relevant, reproducing across runs. A metric that
+disagrees with ground truth that plainly cannot decide promotion. See
+[RAGAS evaluation evidence](../evidence/ragas-eval.md).
+
 ---
 
 ## 9. Observability

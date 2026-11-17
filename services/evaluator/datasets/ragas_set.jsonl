@@ -1,0 +1,6 @@
+{"id": "o02-refund", "split": "acceptance", "document": "Full refunds are available within 30 days of purchase.", "question": "What is the refund window?", "reference": "Full refunds are available within 30 days of purchase."}
+{"id": "o02-software", "split": "acceptance", "document": "Opened software is not refundable.", "question": "Is opened software refundable?", "reference": "Opened software is not refundable."}
+{"id": "o02-meals", "split": "acceptance", "document": "The daily meal expense limit is GBP 25.", "question": "What is the daily meal expense limit?", "reference": "The daily meal expense limit is GBP 25."}
+{"id": "heldout-travel", "split": "heldout", "document": "The maximum approved travel class for flights under four hours is economy.", "question": "Which travel class may I book for a three-hour flight?", "reference": "Economy class."}
+{"id": "heldout-hardware", "split": "heldout", "document": "Hardware purchases above GBP 1000 require two approvers.", "question": "How many approvers are needed for a GBP 1500 laptop?", "reference": "Two approvers."}
+{"id": "heldout-retention", "split": "heldout", "document": "Customer data must be deleted within 30 days of contract termination.", "question": "When must customer data be deleted after a contract ends?", "reference": "Within 30 days of contract termination."}
