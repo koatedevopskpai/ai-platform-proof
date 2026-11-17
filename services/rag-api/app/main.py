@@ -29,8 +29,11 @@ app = FastAPI(title="ai-platform rag-api", version="0.1.0", lifespan=lifespan)
 
 @app.middleware('http')
 async def trace_request(request, call_next):
-    # Attribute any model spend caused by this request to the route that caused it.
+    # Attribute any model spend caused by this request to the route that caused it, and to the named
+    # run if the client supplied one. Both travel in context variables, which FastAPI propagates into
+    # the threadpool running the synchronous endpoints.
     tokens.set_endpoint(request.url.path)
+    tokens.set_run_label(request.headers.get('x-run-label'))
     with span('http.request', 'rag-api', trace_id=request.headers.get('x-trace-id'),
               parent_span_id=request.headers.get('x-parent-span-id')) as observation:
         try:

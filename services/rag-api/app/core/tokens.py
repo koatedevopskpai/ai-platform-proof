@@ -43,6 +43,11 @@ DIMENSIONS = (    "workload",
 )
 
 _endpoint: ContextVar[str | None] = ContextVar("token_endpoint", default=None)
+_run_label: ContextVar[str | None] = ContextVar("token_run_label", default=None)
+
+# Run labels appear in a JSONL ledger, so they are constrained to an identifier-safe alphabet rather
+# than trusted as supplied. The header comes from the client.
+_LABEL_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _lock = Lock()
 
 _RATE_TABLE_ENV = "TOKEN_RATES_PATH"
@@ -57,6 +62,20 @@ def set_endpoint(value: str | None) -> None:
 
 def current_endpoint() -> str | None:
     return _endpoint.get()
+
+
+def set_run_label(value: str | None) -> None:
+    """Attribute subsequent model calls to a named run.
+
+    A malformed label is dropped rather than passed through: it would otherwise reach the ledger and a
+    report. Silence here is safer than a corrupted key, because the record keeps `label: null` and a
+    report can see that the run is unattributed.
+    """
+    _run_label.set(value if isinstance(value, str) and _LABEL_PATTERN.match(value) else None)
+
+
+def current_run_label() -> str | None:
+    return _run_label.get()
 
 
 def rates_path() -> Path:
@@ -154,7 +173,7 @@ def record(*, component: str, operation: str, model: str, usage: dict | None,
         "output_per_million": row["output_per_million"] if row else None,
         "cost_usd": cost,
         "unpriced_reason": None if row else f"model {model!r} absent from rate table {table['version']}",
-        "label": label,
+        "label": label if label is not None else current_run_label(),
     }
 
     print(json.dumps(entry), flush=True)

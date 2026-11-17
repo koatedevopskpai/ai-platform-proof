@@ -27,6 +27,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Live-mode structural acceptance gate.")
     parser.add_argument("--rag-url", default=os.environ.get("RAG_API_URL", "http://rag-api:8000"))
     parser.add_argument("--label", default="live")
+    parser.add_argument("--run-label", default=None,
+                        help="Attribute token spend to this run; defaults to the label")
     args = parser.parse_args()
 
     try:
@@ -34,6 +36,7 @@ def main() -> int:
             args.rag_url,
             str(DATASET),
             {"provenance": "live_gate_check", "label": args.label},
+            run_label=args.run_label or args.label,
         )
     except ValueError as exc:
         print(json.dumps({"label": args.label, "gate_passed": False, "error": str(exc)}, indent=2))

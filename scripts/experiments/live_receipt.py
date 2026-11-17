@@ -62,6 +62,10 @@ def main() -> int:
         print("refusing to run: set EMBEDDING_MODE=openai and OPENAI_API_KEY", file=sys.stderr)
         return 2
 
+    # Attribute every model call in this process to the run, so cost-per-accepted-answer can join
+    # usage to outcomes by label rather than by timestamp guessing.
+    tokens.set_run_label(LABEL)
+
     data = json.loads(DATASET.read_text(encoding="utf-8"))
     engine = create_engine(os.environ["DATABASE_URL"], future=True)
     Session = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)

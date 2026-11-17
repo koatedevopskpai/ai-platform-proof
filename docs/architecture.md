@@ -337,6 +337,15 @@ Every provider call emits one `token.usage` record carrying three groups of fiel
 distinguishable from the cost of serving `/ingest`. `trace_id` joins a spend record to request
 telemetry.
 
+`label` attributes spend to a **named run**: a client sends `x-run-label` and every model call in that
+request records it. That is what makes cost-per-accepted-answer computable — usage and gate outcomes join
+on the label instead of being matched by timestamp. A request without the header records `label: null`,
+so unattributed spend stays visible rather than folding silently into a total.
+
+Labels are validated against an identifier alphabet and dropped if malformed, so a header cannot inject
+arbitrary content into the ledger. They are client-supplied and unauthenticated: a client can misattribute
+its own spend, which is acceptable for attribution and not for billing.
+
 **The rate is stored with the record.** Recomputing cost from today's prices would rewrite history
 every time a provider changed them; storing the rate and its table version means past entries keep
 reporting what they actually cost.

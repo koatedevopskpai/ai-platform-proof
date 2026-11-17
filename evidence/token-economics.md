@@ -162,6 +162,44 @@ hidden the disagreement.
 
 ---
 
+## Run attribution — closing the join for unit economics
+
+Cost per accepted answer needs two things joined: the spend a run caused, and the cases that run passed.
+Outcomes live in the gate report; spend lives in the ledger. Until now nothing linked them, because
+service calls recorded `label: null` — only the evaluator set a label.
+
+A client now sends `x-run-label`, the service records it on every `token.usage` entry for that request,
+and the gate harness supplies it automatically. Measured on one gate run:
+
+```
+GET /costs?group_by=label
+
+  t5a-check   12 calls   371 tokens   $0.00005986
+  (none)       1 call      6 tokens   $0.00000012
+```
+
+Twelve calls belong to the gate run — three ingests, three searches, three answers and three generations
+— and the single unlabelled call is a manual ingest issued without the header, kept separate rather than
+folded into the run total.
+
+That `(none)` row is deliberate. A ledger that silently blended unattributed spend into a named run would
+make every unit-economics figure quietly wrong.
+
+**Design notes**
+
+- The label travels in a context variable set by middleware, the same mechanism as `endpoint`
+  attribution, so no endpoint signature changed.
+- Malformed labels are dropped, not stored: the header comes from a client and would otherwise be able to
+  inject arbitrary text into a JSONL ledger. A dropped label records `null`, which a report can see.
+- An explicit label passed in code wins over the request context, so the evaluator's run tag is not
+  overwritten by a header.
+
+**Limit.** Labels are client-supplied and unauthenticated. A caller can misattribute *its own* spend,
+which is acceptable for attribution and unacceptable for billing. Real chargeback would need signed or
+server-issued run identifiers.
+
+---
+
 ## What this establishes
 
 - Every provider call is attributable to workload, environment, component, operation, endpoint, model,
