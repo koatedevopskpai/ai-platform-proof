@@ -437,6 +437,9 @@ acceptance, neither of which CI runs. A step is skipped only when its probe genu
 capability is tested, not the presence of a binary name — and skips are reported rather than counted
 as passes.
 
+The CI job structure, its measured timings, and the optimisations that were adopted, rejected and
+removed are recorded in [ci.md](ci.md).
+
 **Not run by `verify`:** the live-provider receipt (`scripts/experiments/live_receipt.py`). It needs an
 API key and spends money, so it is a deliberate manual step whose output is recorded in
 [evidence/live-provider.md](../evidence/live-provider.md).
