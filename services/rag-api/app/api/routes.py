@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.db import get_db
+from app.core import tokens
 from app.models import Document
 from app.services.embedding import embedding_service
 from app.services.rag import rag_service
@@ -32,6 +33,19 @@ class QueryRequest(BaseModel):
 def health(db: Session = Depends(get_db)) -> dict:
     db.execute(text("SELECT 1"))
     return {"status": "ok", "embedding_mode": settings.embedding_mode}
+
+
+@router.get("/costs")
+def costs(group_by: str = "operation") -> dict:
+    """Token spend grouped by one attribution dimension.
+
+    The analogue of a FinOps cost report: which endpoint, operation, model or provider consumed the
+    tokens. `unpriced_calls` is reported so an incomplete total cannot look complete.
+    """
+    try:
+        return tokens.rollup(group_by=group_by)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/ingest", response_model=IngestResponse)

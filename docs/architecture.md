@@ -308,6 +308,56 @@ integrity is not verified. NuGet packages are pinned by version, not signature. 
 tag movement; they do not prove provenance. The build is reproducible in *inputs*, not bit-identical
 in *outputs*.
 
+### 10.2 Token economics
+
+Model calls consume tokens rather than instance-hours, so they need the same treatment cloud resources
+get from FinOps tagging: every call records what it spent and which resource caused it.
+
+Every provider call emits one `token.usage` record carrying three groups of fields:
+
+| Group | Fields |
+|---|---|
+| Attribution | `workload`, `environment`, `component`, `operation`, `endpoint`, `model`, `provider`, `mode` |
+| Measurement | `prompt_tokens`, `completion_tokens`, `total_tokens` |
+| Pricing | `rate_version`, `input_per_million`, `output_per_million`, `cost_usd` |
+
+`endpoint` is taken from the HTTP route handling the request, so the cost of answering `/rag` is
+distinguishable from the cost of serving `/ingest`. `trace_id` joins a spend record to request
+telemetry.
+
+**The rate is stored with the record.** Recomputing cost from today's prices would rewrite history
+every time a provider changed them; storing the rate and its table version means past entries keep
+reporting what they actually cost.
+
+**Unpriced calls are loud.** A model absent from `token_rates.json` is recorded with `cost_usd: null`
+and a reason, and every rollup reports `unpriced_calls` separately. A total that silently excludes what
+it could not price looks complete and is not.
+
+Cost is queryable through `GET /costs?group_by=operation|endpoint|model|provider|mode|component|…`.
+Mock calls are excluded by design: the ledger is a cost ledger, and zero-cost rows make every average
+harder to read.
+
+Measured on one live run — twelve calls, $0.00005446 — `/rag` accounted for **98.2%** of spend while
+all nine embedding calls together cost 2.5%. See
+[token economics evidence](../evidence/token-economics.md).
+
+**Judge spend is included.** RAGAS drives its judge through LangChain, which bypassed the service's HTTP
+client entirely; a registered callback handler now emits one record per judge call, tagged
+`component: evaluator`, `operation: eval.judge` and the run label. In a six-sample evaluation the 60
+judge calls were 98.4% of the run's cost, and the run became queryable by label rather than reported as
+a single total.
+
+Two independent measurements exist for that run — the callback's own cost total and the ledger — and
+they disagree by 6% on identical token counts. Both are recorded; the ledger is authoritative because it
+stores the rate used. A single number would have hidden the disagreement.
+
+Dated model snapshots such as `gpt-4o-mini-2024-07-18` resolve to their family alias for pricing, while
+the reported name is retained for attribution.
+
+**Not yet enforced.** Spend is measured, not capped. A runaway run is visible afterwards rather than
+prevented. Because the LangChain handler sees every judge call during a run, a per-run budget can now
+abort mid-run rather than only inspect afterwards.
+
 ---
 
 ## 11. Unsupported design history

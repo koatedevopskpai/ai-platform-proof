@@ -34,17 +34,22 @@ METRIC_NAMES = (
 )
 
 
-def build_adapters(judge_model: str, base_url: str, api_key: str, embedding_model: str):
+def build_adapters(judge_model: str, base_url: str, api_key: str, embedding_model: str,
+                   handler=None):
     """Judge and embedding adapters for the legacy metric path.
 
     ``langchain_openai`` is used only as the transport: it accepts a custom ``base_url``, which is
     what allows the judge to be any OpenAI-compatible endpoint.
+
+    ``handler`` is registered on the judge model so every completion LangChain performs writes a
+    token.usage record. Without it, judge spend exists only as one aggregate at the end of the run.
     """
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
     from ragas.embeddings import LangchainEmbeddingsWrapper
     from ragas.llms import LangchainLLMWrapper
 
-    chat = ChatOpenAI(model=judge_model, api_key=api_key, base_url=base_url, temperature=0)
+    chat = ChatOpenAI(model=judge_model, api_key=api_key, base_url=base_url, temperature=0,
+                      callbacks=[handler] if handler is not None else None)
     embeddings = OpenAIEmbeddings(model=embedding_model, api_key=api_key, base_url=base_url)
     return LangchainLLMWrapper(chat), LangchainEmbeddingsWrapper(embeddings)
 
@@ -74,6 +79,7 @@ def score(
     judge_base_url: str,
     judge_api_key: str,
     embedding_model: str,
+    label: str | None = None,
 ) -> dict:
     """Score rows of {case_id, question, contexts, answer, reference}.
 
@@ -93,7 +99,20 @@ def score(
     ]
     dataset = EvaluationDataset(samples=samples)
 
-    llm, embeddings = build_adapters(judge_model, judge_base_url, judge_api_key, embedding_model)
+    from evaluator.langchain_usage import LangChainUsageHandler
+    from evaluator import token_ledger
+
+    usage_handler = LangChainUsageHandler(
+        component="evaluator",
+        operation="eval.judge",
+        label=label,
+        model=judge_model,
+        base_url=judge_base_url,
+        table=token_ledger.load_rates(),
+    )
+
+    llm, embeddings = build_adapters(judge_model, judge_base_url, judge_api_key, embedding_model,
+                                     handler=usage_handler)
     metrics = build_metrics()
 
     # Judge token usage is not exposed by evaluate()'s result object, so it is captured from the
@@ -151,6 +170,12 @@ def score(
         "per_sample": per_sample,
         "aggregate": aggregate,
         "usage": usage,
+        "judge_ledger": {
+            "records": len(usage_handler.records),
+            "total_tokens": usage_handler.total_tokens,
+            "total_cost_usd": usage_handler.total_cost_usd,
+            "unpriced": sum(1 for record in usage_handler.records if record.get("cost_usd") is None),
+        },
         "metric_names_returned": sorted(str(c) for c in frame.columns if c in METRIC_NAMES),
         "result_attributes": sorted(n for n in dir(result) if not n.startswith("_"))[:40],
     }

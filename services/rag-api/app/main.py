@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.api.routes import router
 from app.core.db import Base, engine
 from app.core.telemetry import span
+from app.core import tokens
 
 
 @asynccontextmanager
@@ -23,6 +24,8 @@ app = FastAPI(title="ai-platform rag-api", version="0.1.0", lifespan=lifespan)
 
 @app.middleware('http')
 async def trace_request(request, call_next):
+    # Attribute any model spend caused by this request to the route that caused it.
+    tokens.set_endpoint(request.url.path)
     with span('http.request', 'rag-api', trace_id=request.headers.get('x-trace-id'),
               parent_span_id=request.headers.get('x-parent-span-id')) as observation:
         try:

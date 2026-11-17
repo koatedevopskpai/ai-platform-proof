@@ -13,6 +13,7 @@ import httpx
 
 from app.core.config import settings
 from app.core.telemetry import span
+from app.core import tokens
 
 
 class EmbeddingService:
@@ -24,7 +25,15 @@ class EmbeddingService:
 
     def embed_texts(self, texts: Sequence[str]) -> list[list[float]]:
         if self.mode == "openai" and settings.openai_api_key:
-            return self._embed_openai(list(texts))
+            vectors, usage = self._embed_openai(list(texts))
+            tokens.record(
+                component="rag-api",
+                operation="embedding.embed",
+                model=self.model,
+                usage=usage,
+                base_url=settings.openai_base_url,
+            )
+            return vectors
         return [self._embed_mock(t) for t in texts]
 
     def embed(self, text: str) -> list[float]:
@@ -51,7 +60,7 @@ class EmbeddingService:
         norm = math.sqrt(sum(v * v for v in vec)) or 1.0
         return [v / norm for v in vec]
 
-    def _embed_openai(self, texts: list[str]) -> list[list[float]]:
+    def _embed_openai(self, texts: list[str]) -> tuple[list[list[float]], dict | None]:
         headers = {"Authorization": f"Bearer {settings.openai_api_key}"}
         payload = {"model": self.model, "input": texts}
         # text-embedding-3-* supports a dimensions parameter, so the provider can be asked for the
@@ -65,12 +74,12 @@ class EmbeddingService:
                 f"{settings.openai_base_url}/embeddings", json=payload, headers=headers
             )
             resp.raise_for_status()
-            data = resp.json()["data"]
+            body = resp.json()
         # Providers may return batch items out of order; ordering by index keeps the mapping
         # between input text and stored vector correct.
-        vectors = [item["embedding"] for item in sorted(data, key=lambda item: item["index"])]
+        vectors = [item["embedding"] for item in sorted(body["data"], key=lambda item: item["index"])]
         self._require_dimensions(vectors)
-        return vectors
+        return vectors, body.get("usage")
 
     def _require_dimensions(self, vectors: list[list[float]]) -> None:
         """Fail loudly on a width mismatch rather than letting the insert fail later.

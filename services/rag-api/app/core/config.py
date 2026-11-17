@@ -22,5 +22,10 @@ class Settings(BaseSettings):
     rag_top_k: int = 4
     rag_min_score: float = 0.10
 
+    # Token-economics attribution tags, the analogue of FinOps cost-allocation tags. They carry no
+    # secrets; they exist so a token ledger can answer "which resource spent this".
+    workload: str = "ai-platform-proof"
+    environment: str = "local-dev"
+
 
 settings = Settings()
