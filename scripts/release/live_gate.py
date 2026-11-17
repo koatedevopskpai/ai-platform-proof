@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import os
 from pathlib import Path
 
 CHECKS = (
@@ -122,3 +123,36 @@ def report(rows: list[dict], policy: dict, expected_count: int, dataset_id: str,
         "rows": rows,
         "gate": assess(rows, policy, expected_count),
     }
+
+
+OUTCOME_FIELDS = (
+    "event", "ts_utc", "label", "policy", "attempted", "accepted", "passed",
+)
+
+
+def record_outcome(report: dict, label: str | None, path=None) -> dict:
+    """Append a run.outcome entry beside the spend it describes.
+
+    Same file, different event type: token.usage carries cost, run.outcome carries the verdict. Rollups
+    filter on `event`, so adding this does not disturb cost queries, and a report can join the two on
+    `label` rather than matching timestamps.
+
+    Written even when the run failed. A failed run that spent money and accepted nothing is exactly the
+    row a cost report needs, and omitting it would flatter every average.
+    """
+    gate = report.get("gate", {})
+    entry = {
+        "event": "run.outcome",
+        "ts_utc": datetime.now(timezone.utc).isoformat(),
+        "label": label,
+        "policy": gate.get("policy_id"),
+        "attempted": int(gate.get("expected_count") or 0),
+        "accepted": int(round((gate.get("pass_ratio") or 0) * (gate.get("expected_count") or 0))),
+        "passed": bool(gate.get("passed")),
+    }
+
+    path = path or Path(os.environ.get("TOKEN_LEDGER_PATH", "artifacts/token-ledger.jsonl"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry) + "\n")
+    return entry

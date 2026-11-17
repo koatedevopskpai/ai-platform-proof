@@ -197,3 +197,44 @@ class RunLabelTransportTests(unittest.TestCase):
 
         self.assertIs(candidate_gate.with_run_label(fake, None), fake)
         self.assertIs(candidate_gate.with_run_label(fake, ""), fake)
+
+
+class OutcomeRecordTests(unittest.TestCase):
+    """run.outcome is the second ledger event type; T5c joins on it, so its shape is a contract."""
+
+    def test_a_passing_run_records_attempted_and_accepted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ledger.jsonl"
+            entry = live_gate.record_outcome(
+                {"gate": {"policy_id": "live-structural-v1", "expected_count": 3,
+                          "pass_ratio": 1.0, "passed": True}},
+                "gate-run", path=path)
+            written = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+
+        self.assertEqual(entry["event"], "run.outcome")
+        self.assertEqual((entry["attempted"], entry["accepted"]), (3, 3))
+        self.assertEqual(written[0]["label"], "gate-run")
+
+    def test_a_failed_run_is_still_written(self):
+        # The row a cost report needs most: money spent, nothing accepted.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ledger.jsonl"
+            entry = live_gate.record_outcome(
+                {"gate": {"policy_id": "live-structural-v1", "expected_count": 3,
+                          "pass_ratio": 0.0, "passed": False}},
+                "failed-run", path=path)
+        self.assertEqual(entry["accepted"], 0)
+        self.assertFalse(entry["passed"])
+
+    def test_accepted_rounds_a_partial_pass_ratio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entry = live_gate.record_outcome(
+                {"gate": {"expected_count": 3, "pass_ratio": 0.6667, "passed": False}},
+                "partial", path=Path(tmp) / "ledger.jsonl")
+        self.assertEqual(entry["accepted"], 2)
+
+    def test_a_missing_gate_block_does_not_crash(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            entry = live_gate.record_outcome({}, "empty", path=Path(tmp) / "ledger.jsonl")
+        self.assertEqual((entry["attempted"], entry["accepted"]), (0, 0))
+        self.assertIsNone(entry["policy"])

@@ -18,6 +18,7 @@ REPO = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "release"))
 
 import candidate_gate  # noqa: E402
+import live_gate  # noqa: E402
 
 DATASET = REPO / "scripts" / "release" / "acceptance-live.json"
 OUT = Path(os.environ.get("OUT_DIR", REPO / "artifacts" / "experiments"))
@@ -46,6 +47,8 @@ def main() -> int:
     path = OUT / f"live-gate-{args.label}.json"
     path.write_text(json.dumps(report, indent=2), encoding="utf-8")
 
+    outcome = live_gate.record_outcome(report, args.run_label or args.label)
+
     gate = report["gate"]
     print(json.dumps({
         "label": args.label,
@@ -53,6 +56,7 @@ def main() -> int:
         "policy": gate["policy_id"],
         "gate_passed": gate["passed"],
         "pass_ratio": gate["pass_ratio"],
+        "outcome_recorded": outcome,
         "cases": [
             {"case": row["case_id"], "mode": row["generation_mode"],
              "checks": row["checks"]}
