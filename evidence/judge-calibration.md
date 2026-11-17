@@ -1,8 +1,8 @@
 # Judge calibration evidence
 
 **Date:** 17 November 2026
-**Source revision:** `d007acb` plus the calibration tooling in this change
-**Grade:** bias probes E3 (method demonstrated); kappa awaiting human labels
+**Source revision:** `dacc608` plus the calibration tooling in this change
+**Grade:** E4 — dated runs with recorded output, against labels from a single annotator
 **Judge under test:** `gpt-4o-mini`
 
 Two different questions, and they need different work:
@@ -73,43 +73,94 @@ design, this is a number to report and not a conclusion to draw.
 
 ---
 
-## Part 2 — Kappa (tool built, labels pending)
+## Part 2 — Kappa (measured)
 
-`scripts/experiments/judge_calibration.py` has three phases, and blinding is enforced by construction:
-
-| Phase | Does | Sees the judge? |
-|---|---|---|
-| `generate` | Builds 48 items from six fixture documents | No |
-| `label` | Shows context and answer, records a verdict | **No** — never calls it |
-| `score` | Runs the judge, computes kappa, CI and confusion matrix | Yes, after labelling |
-
-The task is binary: *is every factual claim in the answer supported by the context?* A binary decision
-has a stable kappa; a three-point scale would need weighted kappa and a wider interval for the same
-effort.
-
-**Item set: 48 items, ten variants per document** — verbatim, padded, four truncation depths, negation
-(with and without filler), a cross-document answer, another document's text, a prefix-only fragment, a
-hedged answer, and shuffled word order. Deduplication brings 60 candidate variants down to 48 because
-the fixture references are short.
+48 items labelled blind by the author, then scored by the judge. 48 judge calls, no scoring errors.
 
 | Statistic | Value |
 |---|---|
 | Items | 48 |
-| Expected labelling time | ~25 minutes at 30 s per item |
-| Judge cost to score | roughly $0.005 |
+| Observed agreement | **0.75** |
+| Expected agreement (chance) | 0.4922 |
+| **Cohen's kappa** | **0.5077** |
+| 95% interval | **0.27 – 0.75** |
+| Band | **moderate** |
 
-**The arithmetic is tested before any labelling happens** — ten unit tests, including a hand-computed
-2×2 table where kappa is 0.40 by construction, perfect agreement, total disagreement, and empty input. A
-wrong formula would turn twenty-five minutes of human work into a wrong number.
+Confusion matrix:
 
-### What the result will and will not mean
+|  | Judge yes | Judge no |
+|---|---:|---:|
+| **Human yes** | 14 | 1 |
+| **Human no** | **11** | 22 |
 
-- **Will mean:** how far the judge agrees with one informed human, with an interval, and which item
-  variants it gets wrong
-- **Will not mean:** inter-annotator agreement. One labeller means judge-versus-author. That is the
-  standard limitation for a single-person project and it should be stated before anyone asks
-- **At n=48 the interval will be wide** — roughly ±0.2 for a kappa near 0.7. That demonstrates method,
-  not precision. More items would need more source documents, not more variants of six
+The judge never crashed, never returned an unparseable verdict, and agreed on three quarters of items.
+Kappa of 0.51 is *moderate* — usable for reporting, **not** good enough to gate on. That is the
+quantitative answer to "can we trust this judge to decide promotion", and it is no.
+
+## The disagreements are two different problems
+
+Aggregate kappa hides the shape. Per-variant agreement:
+
+| Variant | n | Agreement |
+|---|---:|---:|
+| `verbatim` | 6 | **1.0** |
+| `cross_document` | 6 | **1.0** |
+| `negated` | 6 | **1.0** |
+| `negated_padded` | 6 | **1.0** |
+| `other_context` | 3 | **1.0** |
+| `truncated_55` | 4 | 0.75 |
+| `truncated_40` | 3 | 0.67 |
+| `truncated_70` | 4 | 0.50 |
+| `truncated_85` | 4 | 0.50 |
+| **`padded`** | 6 | **0.0** |
+
+### Real judge failure: appended unverifiable claims
+
+**Every one of the six `padded` items was accepted by the judge and rejected by the human.** The filler —
+"This is provided for general guidance only and may change without notice; it does not constitute
+advice" — is a claim the context does not support. The judge ignored it and scored the answer on its
+supported opening.
+
+This is the verbosity insensitivity that the bias probe **could not detect**, because the probe saturated
+at 1.0. Where items sit below the ceiling, the effect appears: six out of six.
+
+**Consequence for the prompt:** "is every factual claim supported" does not make the judge treat
+qualifications as claims. A judge intended to catch this needs the instruction to be explicit that
+hedges, disclaimers and appended qualifications count as claims.
+
+### Rubric ambiguity, not judge error: truncation
+
+Truncated variants split 0.50–0.75. Reading the individual rows, the human rejected most truncations and
+the judge accepted them — and **the judge is defensible under the rubric as written.** The task was "is
+every factual claim in the ANSWER supported by the CONTEXT". A truncated answer makes fewer claims, and
+every one of them is supported. The human was applying a stricter standard: *is the answer adequate*, not
+*is it supported*.
+
+Five of the eleven apparent "judge accepts unsupported answers" cases are this ambiguity, not leniency.
+
+**Consequence for the method:** the two questions must not share a rubric. Either label "supported"
+literally — in which case truncation is a pass — or label "adequate", in which case the judge needs a
+different prompt. Mixing them depresses kappa for a reason that has nothing to do with the model.
+
+## What the measurement establishes
+
+- Kappa of 0.51, moderate, CI 0.27–0.75: the judge is not reliable enough to decide promotion. This is the
+  empirical basis for keeping scores out of the gate.
+- The judge is **strong on contradiction** — cross-document, negated and wrong-context items all agreed
+  perfectly.
+- The judge is **weak on extra claims** — appended qualifications were accepted 6 out of 6 times.
+- The verbosity probe's saturation was not a false alarm: the calibration run found the effect where the
+  probe could not.
+
+## What it does not establish
+
+- **Inter-annotator agreement.** One labeller, so this is judge-versus-author. The standard limitation for
+  a single-person project, stated before anyone asks.
+- **Precision.** At n=48 the interval spans 0.27–0.75. This demonstrates method, not a tuned instrument.
+  More items would need more source documents, not more variants of six.
+- **Generality.** Items are synthetic perturbations of six fixture documents.
+- **That 0.51 is the judge's ceiling.** The padded failures are prompt-related and probably fixable; a
+  revised rubric would need re-labelling to measure.
 
 ---
 
