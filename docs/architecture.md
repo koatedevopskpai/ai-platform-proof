@@ -233,6 +233,13 @@ answered from the deterministic fallback, and passed them when it answered from 
 not enter a manifest designed to be published and hash-verified. The live gate is a pre-release check
 against a running deployment, not part of the bundle.
 
+**Offline evaluation uses the RAGAS library**, pinned at `0.4.4` in `services/evaluator`. It scores
+live answers on faithfulness, answer relevancy, context precision and recall, and answer correctness.
+It sits deliberately **outside** the promotion gate: on six samples it scored a source-identical
+answer 0.333 faithful and a correct answer 0.0 relevant, reproducing across runs. A metric that
+disagrees with ground truth that plainly cannot decide promotion. See
+[RAGAS evaluation evidence](../evidence/ragas-eval.md).
+
 ---
 
 ## 9. Observability

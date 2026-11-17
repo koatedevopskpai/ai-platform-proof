@@ -144,3 +144,7 @@ answer, usage present, exact citations, fixture phrases — and a controlled run
 when the service answered from the deterministic fallback:
 [evidence/gate-live.md](evidence/gate-live.md). The release CLI still builds mock-only bundles, because
 provider credentials must not enter a manifest.
+
+Offline evaluation uses the RAGAS library — [evidence/ragas-eval.md](evidence/ragas-eval.md). Its
+scores are reported, never used to gate, because measurement showed them disagreeing with obvious
+ground truth: a source-identical answer scored 0.33 faithful.
