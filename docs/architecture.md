@@ -219,12 +219,19 @@ list — a fixture property, not an evaluation method. The gate establishes prov
 identity and fail-closed promotion. It does not establish answer quality. Semantic evaluation
 remains a separate, deferred item.
 
-**Live answers are not yet gated.** Generation has been exercised against two providers
-([live provider evidence](../evidence/live-provider.md)), but the promotion gate has only ever run
-against deterministic mock output. A live answer fails the current `faithfulness` predicate because a
-model answer is not a substring of its contexts. Until the live-mode predicate set exists, the live
-path has no promotion control — the gate protects the mock path only. Recorded as workstream C5 in the
-briefing document.
+**Live answers are gated structurally.** The gate dispatches on `execution_mode`: mock datasets keep
+the binary fixture predicates, live datasets use `live-structural-v1`, which requires a provider
+answer, non-zero token usage, an exact citation match and the fixture phrases present. No model judge
+is in the gate, because a measured judge scored a source-identical answer 0.333 faithful, so quality
+scores report but do not decide.
+
+A controlled run with the same dataset and the same gate code blocked all three cases when the service
+answered from the deterministic fallback, and passed them when it answered from a provider. See
+[live gate evidence](../evidence/gate-live.md).
+
+**Not wired into the release CLI.** Release bundles stay mock-only, because provider credentials must
+not enter a manifest designed to be published and hash-verified. The live gate is a pre-release check
+against a running deployment, not part of the bundle.
 
 ---
 

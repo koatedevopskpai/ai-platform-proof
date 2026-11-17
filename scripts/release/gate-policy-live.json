@@ -1,0 +1,14 @@
+{
+  "policy_id": "live-structural-v1",
+  "scope": "Live-provider acceptance cases. Structural and provenance predicates only; no model-judged quality.",
+  "required_checks": [
+    "provider_answer",
+    "not_fallback",
+    "usage_present",
+    "sources_valid",
+    "required_phrases",
+    "forbidden_phrases"
+  ],
+  "min_pass_ratio": 1.0,
+  "rationale": "Every case must satisfy every structural predicate. Quality scoring is deliberately excluded: a measured judge scored a source-identical answer 0.333 faithful, so these scores cannot decide promotion. See evidence/ragas-eval.md."
+}
