@@ -193,6 +193,24 @@ Kappa measures agreement between the judge and a **human**. It cannot be automat
 labels give model-versus-model agreement. The arithmetic is covered by `tests/test_calibration.py`,
 including a hand-computed table where kappa is 0.40 by construction.
 
+### `unit_economics.py` — spend joined to outcomes
+
+Reads a token ledger and joins `token.usage` to `run.outcome` on `label`, then writes JSON and markdown:
+
+```sh
+python scripts/experiments/unit_economics.py \
+  --ledger artifacts/token-ledger-econ.jsonl \
+  --json-out artifacts/experiments/unit-economics.json \
+  --markdown-out artifacts/experiments/unit-economics.md
+```
+
+Produces cost per accepted answer, cost per 1k tokens per model, and spend share by model and endpoint.
+Spend with no outcome and outcomes with no spend are reported as separate sections rather than dropped:
+an unjoined spend total would make every cost-per-accepted figure wrong in the flattering direction.
+
+The arithmetic is covered by `tests/test_unit_economics.py`, including the degenerate cases — nothing
+accepted, no tokens, unpriced calls, outcome without spend.
+
 ## Limitations
 
 - Random embeddings test the retrieval SQL, not semantic retrieval quality

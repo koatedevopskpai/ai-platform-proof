@@ -404,6 +404,33 @@ being checked.
 Worst case per call at the caps is $0.0015, so a twelve-call run cannot exceed $0.018 — below the run
 budget by design. See [cost guard evidence](../evidence/cost-guards.md).
 
+#### Unit economics reporting
+
+The gate harness writes a `run.outcome` entry into the same ledger when a run finishes, carrying
+`label`, `policy`, `attempted`, `accepted` and `passed`. Usage and outcomes are therefore two event
+types in one file, and rollups filter on `event`, so adding outcomes does not disturb cost queries.
+
+That makes three measures computable by joining on `label` rather than by matching timestamps:
+
+| Measure | Numerator | Denominator | Degenerate case |
+|---|---|---|---|
+| Cost per accepted answer | run spend | accepted cases | Undefined when nothing was accepted — reported as absent, not infinite |
+| Cost per 1k tokens | spend | tokens ÷ 1000 | Reported **per model**: one blended rate describes no model |
+| Spend share | model or endpoint spend | total spend | Unpriced calls counted separately so shares do not silently total 100% |
+
+`scripts/experiments/unit_economics.py` produces the report from a ledger. Spend and outcomes that do
+not join are listed as separate sections, because spend that cannot be attributed to an accepted run is
+a fact a cost report has to show — folding it into the total would bias cost-per-accepted downward, in
+the flattering direction.
+
+Measured on one gated run of three fixtures: 12 calls, 371 tokens, **$0.000019953 per accepted answer**
+and $0.000161 per 1k tokens, with `gpt-4o-mini` at 98.1% of spend and embedding calls at 1.9%. A
+second run recorded spend with no outcome and appears as unjoined. See
+[unit economics evidence](../evidence/unit-economics.md).
+
+**A failed run is written too.** A run that spent money and accepted nothing is precisely the row a cost
+report needs; omitting it would flatter every average that followed.
+
 ---
 
 ## 11. Unsupported design history
