@@ -164,6 +164,35 @@ Two things about 0.4.4 worth knowing before editing this script:
   classes are a different base type and are rejected.
 - The legacy path needs the deprecated LangChain wrappers. Both are pinned deliberately.
 
+### `judge_bias.py` — verbosity, position and self-preference probes
+
+Controlled perturbations with no human labels. Content is held constant and an irrelevant property
+moves; if the verdict changes, that is bias.
+
+```sh
+python scripts/experiments/judge_bias.py \
+  --answers artifacts/experiments/live-openai-both.json \
+  --answers artifacts/experiments/live-deepseek-generation.json \
+  --documents scripts/release/acceptance.json --label three-case-demo
+```
+
+Results and their limits: `evidence/judge-calibration.md`. Note that a probe operating at the score
+ceiling cannot detect an effect — the verbosity probe returned 1.0 for every item and measured nothing.
+
+### `judge_calibration.py` — blind labelling and Cohen's kappa
+
+Three phases. Blinding is enforced by construction: `label` never calls the judge.
+
+```sh
+python scripts/experiments/judge_calibration.py generate            # 48 items
+python scripts/experiments/judge_calibration.py label               # ~25 min, blind
+python scripts/experiments/judge_calibration.py score --label kappa # kappa, CI, confusion
+```
+
+Kappa measures agreement between the judge and a **human**. It cannot be automated: model-generated
+labels give model-versus-model agreement. The arithmetic is covered by `tests/test_calibration.py`,
+including a hand-computed table where kappa is 0.40 by construction.
+
 ## Limitations
 
 - Random embeddings test the retrieval SQL, not semantic retrieval quality

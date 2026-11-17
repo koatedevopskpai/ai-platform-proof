@@ -366,6 +366,19 @@ stores the rate used. A single number would have hidden the disagreement.
 Dated model snapshots such as `gpt-4o-mini-2024-07-18` resolve to their family alias for pricing, while
 the reported name is retained for attribution.
 
+**Judge calibration, measured against 48 blind human labels.** Cohen's kappa is **0.508** (95% CI
+0.27–0.75, moderate) — usable for reporting, **not** for gating. That is now the empirical basis for
+keeping quality scores out of the promotion decision, rather than a preference.
+
+The shape matters more than the aggregate. The judge agrees perfectly on contradiction — cross-document
+answers, negated statements and wrong-context text all scored 1.0 agreement — and fails consistently on
+appended claims: qualifications the context does not support were accepted **6 times out of 6**.
+
+Bias probes: position bias was not observed; the verbosity probe saturated at 1.0 for every item and
+therefore measured nothing — the calibration run found that effect where the probe could not. Single
+annotator, so this is judge-versus-author, not inter-annotator agreement. See
+[judge calibration evidence](../evidence/judge-calibration.md).
+
 **Enforced before spending.** Three guards run before the provider call: a completion cap sent to the
 provider as `max_tokens`, a prompt ceiling that rejects rather than truncates, and an allowlist that
 permits only models present in the rate table. Guards raise rather than returning a fallback answer,
