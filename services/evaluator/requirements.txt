@@ -1,4 +1,9 @@
-# Exact pins, resolved 2026-11-16. Pinned without hashes; see the note in
+# Exact pins, resolved 2026-11-17. Pinned without hashes; see the note in
 # services/rag-api/requirements.txt.
 numpy==2.5.5
 httpx==0.27.2
+# RAGAS evaluation library, pinned because its API moves between minor versions: 0.4.x no longer
+# exposes the concrete metric classes at ragas.metrics, so code written against 0.2.x will not run.
+# Heavy dependency (pulls langchain, datasets, pandas); confined to this offline service so the
+# request path stays unaffected.
+ragas==0.4.4
